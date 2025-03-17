@@ -1,0 +1,22 @@
+{
+  "name": "share-vanish",
+  "version": "1.0.0",
+  "description": "基于 Markdown 的临时内容共享工具",
+  "scripts": {
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
+    "build": "cd frontend && npm run build && cd ../backend && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": [
+    "markdown",
+    "share",
+    "temporary",
+    "secure"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 

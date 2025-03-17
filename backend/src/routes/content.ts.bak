@@ -1,0 +1,77 @@
+import express from 'express'
+import { nanoid } from 'nanoid'
+import { Content } from '../models/Content.js'
+
+const router = express.Router()
+
+// 使用内存存储替代数据库
+const contents = new Map()
+
+// 创建新内容
+router.post('/', async (req, res) => {
+  try {
+    console.log('收到创建内容请求:', req.body)
+    const { text, images } = req.body
+    const accessCode = nanoid(4)
+    
+    // 存储内容
+    contents.set(accessCode, {
+      text,
+      images,
+      createdAt: Date.now()
+    })
+    
+    console.log('内容创建成功，访问码:', accessCode)
+    
+    // 设置24小时后自动删除
+    setTimeout(() => {
+      contents.delete(accessCode)
+      console.log('内容已过期，访问码:', accessCode)
+    }, 24 * 60 * 60 * 1000)
+    
+    res.json({
+      success: true,
+      data: {
+        accessCode
+      }
+    })
+  } catch (error) {
+    console.error('创建内容时发生错误:', error)
+    res.status(500).json({
+      success: false,
+      error: '创建内容失败'
+    })
+  }
+})
+
+// 获取内容
+router.get('/:accessCode', async (req, res) => {
+  try {
+    const { accessCode } = req.params
+    console.log('收到获取内容请求，访问码:', accessCode)
+    
+    const content = contents.get(accessCode)
+    
+    if (!content) {
+      console.log('内容不存在或已过期，访问码:', accessCode)
+      return res.status(404).json({
+        success: false,
+        error: '内容不存在或已过期'
+      })
+    }
+    
+    console.log('成功获取内容，访问码:', accessCode)
+    res.json({
+      success: true,
+      data: content
+    })
+  } catch (error) {
+    console.error('获取内容时发生错误:', error)
+    res.status(500).json({
+      success: false,
+      error: '获取内容失败'
+    })
+  }
+})
+
+export const contentRouter = router 
