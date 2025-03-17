@@ -35,13 +35,42 @@ export const encryptContent = (content: Content, accessCode: string): string => 
 
 // 解密内容
 export const decryptContent = (encryptedData: string, accessCode: string): Content => {
-  const secretKey = generateSecretKey(accessCode)
-  const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey)
-  const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8))
-  return {
-    text: decryptedData.text,
-    images: decryptedData.images,
-    createdAt: Date.now() // 使用当前时间，因为解密后无法获取原始创建时间
+  try {
+    console.log('开始解密内容，使用访问码:', accessCode.slice(0, 2) + '**')
+    const secretKey = generateSecretKey(accessCode)
+    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey)
+    const decryptedString = bytes.toString(CryptoJS.enc.Utf8)
+    
+    if (!decryptedString) {
+      console.error('解密结果为空字符串')
+      throw new Error('解密后数据为空')
+    }
+    
+    let decryptedData
+    try {
+      decryptedData = JSON.parse(decryptedString)
+      console.log('成功解析JSON数据', 
+        { text: decryptedData.text?.substring(0, 20) + '...' || '空', 
+          imagesCount: decryptedData.images?.length || 0 
+        }
+      )
+    } catch (jsonError) {
+      console.error('JSON解析失败:', jsonError, '解密字符串前20个字符:', decryptedString.substring(0, 20))
+      throw new Error('解密数据格式错误')
+    }
+    
+    // 确保返回的数据包含所有必要的字段
+    return {
+      text: typeof decryptedData.text === 'string' ? decryptedData.text : '',
+      images: Array.isArray(decryptedData.images) ? decryptedData.images : [],
+      createdAt: Date.now() // 使用当前时间，因为解密后无法获取原始创建时间
+    }
+  } catch (error) {
+    console.error('解密内容错误:', error)
+    // 解密失败时抛出错误，让调用方处理错误
+    throw new Error(error instanceof Error ? 
+      `解密内容失败: ${error.message}` : 
+      '解密内容失败，请确认访问码是否正确')
   }
 }
 
@@ -107,35 +136,51 @@ export const getContent = async (accessCode: string): Promise<ApiResponse<Conten
   try {
     console.log('发送获取内容请求，访问码:', accessCode)
     const response = await fetch(`${API_BASE_URL}/content/${accessCode}`)
-    const data = await response.json()
     
+    // 检查HTTP状态
     if (!response.ok) {
-      throw new Error(data.error || '服务器错误')
+      const errorText = await response.text()
+      console.error('获取内容HTTP错误:', response.status, errorText)
+      return {
+        success: false,
+        error: `服务器错误 (${response.status}): ${errorText}`
+      }
     }
+    
+    const data = await response.json()
+    console.log('服务器响应:', JSON.stringify(data).substring(0, 100) + '...')
     
     // 如果请求成功，解密内容
     if (data.success && data.data && data.data.encryptedData) {
       try {
+        console.log('准备解密内容...')
         const decryptedContent = decryptContent(data.data.encryptedData, accessCode)
         
-        // 创建新的响应对象，包含解密后的内容
+        // 创建完整响应，确保包含createdAt
+        const createdAt = data.data.createdAt || Date.now()
+        console.log('内容解密成功，创建时间:', new Date(createdAt).toLocaleString())
+        
         return {
           success: true,
           data: {
             ...decryptedContent,
-            createdAt: data.data.createdAt // 使用服务器返回的创建时间
+            createdAt // 使用服务器返回的创建时间
           }
         }
       } catch (decryptError) {
         console.error('内容解密失败:', decryptError)
         return {
           success: false,
-          error: '内容解密失败，可能是访问码错误'
+          error: decryptError instanceof Error ? decryptError.message : '内容解密失败，可能是访问码错误'
         }
       }
+    } else {
+      console.error('服务器返回数据格式不正确:', data)
+      return {
+        success: false,
+        error: data.error || '服务器返回数据格式不正确'
+      }
     }
-    
-    return data
   } catch (error) {
     console.error('获取内容失败:', error)
     return {

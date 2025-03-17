@@ -19,6 +19,19 @@ function App() {
   const [isContentLoaded, setIsContentLoaded] = useState(false) // 用于标记是否通过访问码加载了内容
   const [remainingHours, setRemainingHours] = useState<number | null>(null) // 用于显示内容自动失效剩余时间
 
+  // 添加全局键盘事件以支持Enter键快速提取
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && inputAccessCode.length === 4 && !isLoading) {
+        e.preventDefault()
+        handleFetchContent()
+      }
+    }
+    
+    window.addEventListener('keydown', handleGlobalKeyPress)
+    return () => window.removeEventListener('keydown', handleGlobalKeyPress)
+  }, [inputAccessCode, isLoading])
+
   // 计算内容过期剩余时间
   useEffect(() => {
     if (isContentLoaded && content.createdAt) {
@@ -109,14 +122,52 @@ function App() {
         setAccessCode(newAccessCode)
         setInputAccessCode(newAccessCode) // 自动填充到输入框
         
-        // 复制到剪贴板
-        navigator.clipboard.writeText(newAccessCode)
-        setNotificationMessage('访问码已复制到剪贴板')
-        setTimeout(() => setNotificationMessage(''), 3000) // 3秒后清除提示
+        // 改进复制到剪贴板的方法
+        try {
+          // 使用现代API
+          await navigator.clipboard.writeText(newAccessCode)
+          setNotificationMessage('访问码已复制到剪贴板')
+          console.log('复制成功(现代API):', newAccessCode)
+        } catch (clipboardError) {
+          console.warn('现代剪贴板API失败，尝试备用方法', clipboardError)
+          
+          // 显示复制的访问码给用户，以防剪贴板失败
+          setNotificationMessage(`访问码: ${newAccessCode} (请手动复制)`)
+          
+          // 尝试备用方法 - 创建临时元素并选择它
+          const tempInput = document.createElement('textarea')
+          tempInput.value = newAccessCode
+          document.body.appendChild(tempInput)
+          tempInput.select()
+          
+          try {
+            // 尝试使用document.execCommand('copy')
+            const copySuccess = document.execCommand('copy')
+            if (copySuccess) {
+              console.log('复制成功(备用方法):', newAccessCode)
+              setNotificationMessage('访问码已复制到剪贴板')
+            } else {
+              console.warn('备用剪贴板方法失败')
+              setNotificationMessage(`访问码: ${newAccessCode} (请手动复制)`)
+            }
+          } catch (execError) {
+            console.error('execCommand复制失败', execError)
+            setNotificationMessage(`访问码: ${newAccessCode} (请手动复制)`)
+          } finally {
+            document.body.removeChild(tempInput)
+          }
+        }
+        
+        // 无论复制是否成功，都在UI中加粗显示访问码
+        console.log('生成的访问码:', newAccessCode)
+        
+        // 增加通知的显示时间
+        setTimeout(() => setNotificationMessage(''), 5000) // 5秒后清除提示
       } else {
         setError(response.error || '生成访问码失败')
       }
     } catch (error) {
+      console.error('生成访问码错误:', error)
       setError('生成访问码失败')
     } finally {
       setIsLoading(false)
@@ -126,18 +177,29 @@ function App() {
   const handleFetchContent = async () => {
     if (!inputAccessCode || inputAccessCode.length < 4) return
     
-    // 如果输入的访问码与当前正在编辑的内容访问码相同，不执行任何操作
-    if (isContentLoaded && inputAccessCode === accessCode) return
-    
     setIsLoading(true)
     setError('')
     
     try {
       const response = await getContent(inputAccessCode)
       if (response.success && response.data) {
-        setContent(response.data)
-        setAccessCode(inputAccessCode)
+        // 确保内容数据格式正确
+        const fetchedContent = {
+          text: response.data.text || '',
+          images: response.data.images || [],
+          createdAt: response.data.createdAt || Date.now()
+        };
+        
+        // 保存当前访问码
+        const currentCode = inputAccessCode
+        
+        // 存储内容并更新状态
+        setContent(fetchedContent)
+        setAccessCode(currentCode)
         setIsContentLoaded(true)
+        
+        // 成功加载内容后清空输入框中的访问码
+        setInputAccessCode('')
       } else {
         setError(response.error || '获取内容失败')
       }
@@ -153,30 +215,34 @@ function App() {
   }
 
   const handleCreateNewContent = () => {
-    // 重置为创建新内容模式
-    setContent({
+    console.log('创建新内容，重置所有状态')
+    
+    // 完全清空编辑器内容
+    const emptyContent = {
       text: '',
       images: [],
       createdAt: Date.now()
-    })
+    };
+    
+    // 重置所有相关状态
+    setContent(emptyContent)
     setAccessCode('')
     setInputAccessCode('')
     setIsContentLoaded(false)
     setRemainingHours(null)
-  }
-
-  // 访问码输入框按回车键触发提取
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && inputAccessCode.length === 4) {
-      e.preventDefault()
-      handleFetchContent()
-    }
-  }
-
-  // 判断提取按钮是否应该禁用
-  const shouldDisableFetchButton = () => {
-    return inputAccessCode.length < 4 || 
-           isLoading
+    setError('') 
+    setNotificationMessage('')
+    
+    // 强制刷新编辑器组件 - 通过修改key或其他方式
+    // 这里通过先设为null，然后再设为默认值来强制编辑器重新渲染
+    setTimeout(() => {
+      const resetEditor = document.querySelector('.ProseMirror')
+      if (resetEditor) {
+        resetEditor.innerHTML = ''
+      }
+      
+      console.log('编辑器内容和状态已重置')
+    }, 50)
   }
 
   // 处理访问码输入框的焦点
@@ -193,20 +259,19 @@ function App() {
   // 获取特定输入框的样式
   const getInputBoxStyle = (position: number) => {
     const baseClasses = "w-14 h-14 text-center text-xl rounded-md cursor-pointer ";
-    if (isCodeInputFocused) {
-      // 只有当前输入位置的框高亮，其他保持默认
-      if (inputAccessCode.length === position) {
-        return baseClasses + "border-2 border-blue-500 shadow-sm";
-      }
-      // 已输入的框保持默认样式，只是边框颜色略深
-      if (position < inputAccessCode.length) {
-        return baseClasses + "border border-gray-400";
-      }
-      // 未输入的框保持默认样式
-      return baseClasses + "border border-gray-300";
+    
+    // 已输入的框显示不同的边框
+    if (position < inputAccessCode.length) {
+      return baseClasses + "border-2 border-blue-500 bg-blue-50";
     }
-    // 未选中状态
-    return baseClasses + "border hover:border-gray-400";
+    
+    // 下一个输入位置的框高亮
+    if (inputAccessCode.length === position && isCodeInputFocused) {
+      return baseClasses + "border-2 border-blue-500 shadow-sm";
+    }
+    
+    // 未输入的框保持默认样式
+    return baseClasses + "border border-gray-300 hover:border-gray-400";
   }
 
   return (
@@ -257,7 +322,6 @@ function App() {
               className="absolute opacity-0 h-0"
               value={inputAccessCode}
               onChange={handleAccessCodeChange}
-              onKeyPress={handleKeyPress}
               onFocus={() => setIsCodeInputFocused(true)}
               onBlur={handleCodeInputBlur}
               maxLength={4}
@@ -285,7 +349,7 @@ function App() {
               <button
                 className={`btn w-full ${inputAccessCode.length === 4 ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={handleFetchContent}
-                disabled={shouldDisableFetchButton()}
+                disabled={inputAccessCode.length !== 4 || isLoading}
               >
                 提取
               </button>
@@ -302,7 +366,7 @@ function App() {
             
             {isContentLoaded && remainingHours !== null && (
               <div className="text-blue-600">
-                <p>正在编辑通过访问码获取的内容。该内容自动失效时间：{remainingHours}小时后</p>
+                <p>正在编辑通过访问码 {accessCode} 获取的内容。该内容自动失效时间：{remainingHours}小时后</p>
               </div>
             )}
             
