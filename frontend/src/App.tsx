@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { createContent, getContent, type Content } from './api'
+import { createContent, getContent, type Content, updateContent } from './api'
 import './App.css'
 import RichTextEditor from './components/RichTextEditor'
 
@@ -18,6 +18,7 @@ function App() {
   const [isCodeInputFocused, setIsCodeInputFocused] = useState(false) // 跟踪输入框是否被选中
   const [isContentLoaded, setIsContentLoaded] = useState(false) // 用于标记是否通过访问码加载了内容
   const [remainingHours, setRemainingHours] = useState<number | null>(null) // 用于显示内容自动失效剩余时间
+  const [isContentModified, setIsContentModified] = useState(false)
 
   // 添加全局键盘事件以支持Enter键快速提取
   useEffect(() => {
@@ -274,6 +275,45 @@ function App() {
     return baseClasses + "border border-gray-300 hover:border-gray-400";
   }
 
+  // 保存内容变化
+  const handleContentChange = (html: string) => {
+    setContent(prev => {
+      const newContent = { ...prev, text: html }
+      
+      // 检查内容是否被修改（仅在已加载内容的情况下）
+      if (isContentLoaded && accessCode) {
+        setIsContentModified(true)
+      }
+      
+      return newContent
+    })
+  }
+  
+  // 保存已修改的内容
+  const handleSaveContent = async () => {
+    if (!accessCode || !isContentModified) return
+    
+    setIsLoading(true)
+    setError('')
+    
+    try {
+      const response = await updateContent(content, accessCode)
+      
+      if (response.success) {
+        setNotificationMessage('内容已成功保存')
+        setIsContentModified(false) // 重置修改状态
+        setTimeout(() => setNotificationMessage(''), 3000)
+      } else {
+        setError(response.error || '保存内容失败')
+      }
+    } catch (error) {
+      console.error('保存内容时出错:', error)
+      setError('保存内容失败')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center overflow-hidden">
       {/* 顶部访问码输入和按钮区域 - 固定在顶部 */}
@@ -393,9 +433,12 @@ function App() {
           <div className="h-[600px] mb-6 overflow-visible">
             <RichTextEditor 
               initialValue={content.text}
-              onChange={handleTextChange}
+              onChange={handleContentChange}
               onImageUpload={handleImageUpload}
               isReadOnly={false}
+              onSave={handleSaveContent}
+              showSaveButton={isContentLoaded}
+              isModified={isContentModified}
             />
           </div>
           

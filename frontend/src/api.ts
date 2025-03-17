@@ -189,3 +189,58 @@ export const getContent = async (accessCode: string): Promise<ApiResponse<Conten
     }
   }
 }
+
+// 更新已存在的内容
+export const updateContent = async (
+  content: Content,
+  accessCode: string
+): Promise<ApiResponse<{ accessCode: string }>> => {
+  try {
+    console.log('准备更新内容，访问码:', accessCode.slice(0, 2) + '**')
+    
+    // 加密内容
+    const encryptedData = encryptContent(content, accessCode)
+    
+    // 发送更新请求
+    const response = await fetch(`${API_BASE_URL}/content/${accessCode}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ encryptedData }),
+    })
+    
+    // 处理错误
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('更新内容HTTP错误:', response.status, errorText)
+      return {
+        success: false,
+        error: `服务器错误 (${response.status}): ${errorText}`
+      }
+    }
+    
+    // 解析响应
+    const data = await response.json()
+    
+    if (data.success) {
+      console.log('内容更新成功')
+      return {
+        success: true,
+        data: { accessCode }
+      }
+    } else {
+      console.error('更新内容失败:', data.error)
+      return {
+        success: false,
+        error: data.error || '更新内容失败'
+      }
+    }
+  } catch (error) {
+    console.error('更新内容错误:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '更新内容失败'
+    }
+  }
+}

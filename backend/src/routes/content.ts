@@ -100,4 +100,54 @@ router.get('/:accessCode', async (req, res) => {
   }
 })
 
+// 更新内容
+router.put('/:accessCode', async (req, res) => {
+  try {
+    const { accessCode } = req.params
+    const { encryptedData } = req.body
+    
+    console.log('收到更新内容请求，访问码:', accessCode)
+    
+    // 确保提供了加密数据
+    if (!encryptedData) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少加密数据'
+      })
+    }
+    
+    // 从数据库查找内容
+    const content = await Content.findOne({ accessCode })
+    
+    if (!content) {
+      console.log('要更新的内容不存在，访问码:', accessCode)
+      return res.status(404).json({
+        success: false,
+        error: '内容不存在或已过期'
+      })
+    }
+    
+    // 更新内容
+    content.encryptedData = encryptedData
+    
+    // 保存到数据库
+    await content.save()
+    
+    console.log('内容更新成功，访问码:', accessCode)
+    
+    res.json({
+      success: true,
+      data: {
+        accessCode
+      }
+    })
+  } catch (error) {
+    console.error('更新内容时发生错误:', error)
+    res.status(500).json({
+      success: false,
+      error: '更新内容失败'
+    })
+  }
+})
+
 export const contentRouter = router

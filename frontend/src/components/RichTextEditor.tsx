@@ -4,19 +4,26 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import { useCallback, useEffect, useState, useRef } from 'react'
+import './RichTextEditor.css' // 导入样式
 
 interface RichTextEditorProps {
   initialValue: string
   onChange: (html: string) => void
   onImageUpload: (imageDataUrl: string) => boolean
   isReadOnly?: boolean
+  onSave?: () => void
+  showSaveButton?: boolean
+  isModified?: boolean
 }
 
 const RichTextEditor = ({
   initialValue,
   onChange,
   onImageUpload,
-  isReadOnly = false
+  isReadOnly = false,
+  onSave,
+  showSaveButton = false,
+  isModified = false
 }: RichTextEditorProps) => {
   // 用于跟踪内容是否超过容器高度
   const [shouldShowScroll, setShouldShowScroll] = useState(false)
@@ -230,6 +237,18 @@ const RichTextEditor = ({
           >
             1.
           </button>
+          
+          {/* 保存按钮 - 更改样式使其与其他工具栏按钮一致 */}
+          {showSaveButton && onSave && (
+            <button 
+              onClick={onSave}
+              className={isModified ? 'is-active' : 'disabled'}
+              title="保存更改"
+              disabled={!isModified}
+            >
+              💾
+            </button>
+          )}
         </div>
       )}
 
