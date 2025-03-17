@@ -300,9 +300,8 @@ function App() {
       const response = await updateContent(content, accessCode)
       
       if (response.success) {
-        setNotificationMessage('内容已成功保存')
+        // 不显示保存成功的提示
         setIsContentModified(false) // 重置修改状态
-        setTimeout(() => setNotificationMessage(''), 3000)
       } else {
         setError(response.error || '保存内容失败')
       }
