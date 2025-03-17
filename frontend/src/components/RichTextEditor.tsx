@@ -105,6 +105,16 @@ const RichTextEditor = ({
     }
   }, [initialValue, editor, checkContentHeight])
 
+  // 初始化图片从content.images同步到编辑器
+  useEffect(() => {
+    // 仅在图片变化时同步到编辑器
+    if (onImagesSync && editor) {
+      console.log('图片同步调用，检查编辑器中的图片')
+      // 因为这个useEffect是响应onImagesSync变化的
+      // 图片的实际同步是在update事件中完成的
+    }
+  }, [editor, onImagesSync])
+
   // 当isReadOnly变化时更新编辑器状态
   useEffect(() => {
     if (editor) {

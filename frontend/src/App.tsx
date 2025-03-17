@@ -87,18 +87,14 @@ function App() {
         })
       )
 
-      // 添加到内容中
+      // 添加到内容中 - 仅更新拖拽区，不同步到编辑器
       setContent(prev => ({
         ...prev,
         images: [...prev.images, ...newImages]
       }))
       
-      // 将拖拽上传的图片也插入到编辑器中
-      if (editor && newImages.length > 0) {
-        newImages.forEach(imageUrl => {
-          editor.chain().focus().setImage({ src: imageUrl }).run()
-        })
-      }
+      // 不再将拖拽上传的图片插入编辑器
+      // 这样保持拖拽区和编辑器的单向同步：编辑器->拖拽区
     }
   })
 
@@ -115,12 +111,23 @@ function App() {
   const syncImagesFromEditor = (editorImages: string[]) => {
     console.log('从编辑器同步图片，数量:', editorImages.length)
     
-    // 更新content中的images数组，保持图片不重复
+    // 更新content中的images数组，合并而不是替换图片
     setContent(prev => {
-      // 使用编辑器中的图片作为唯一来源
+      // 获取当前content中已有的图片
+      const existingImages = prev.images || []
+      
+      // 合并编辑器中的图片和已有图片，保持不重复
+      // 首先将所有图片放入一个Set中去重
+      const allImagesSet = new Set([...existingImages, ...editorImages])
+      
+      // 转回数组
+      const mergedImages = Array.from(allImagesSet)
+      
+      console.log(`合并后图片总数: ${mergedImages.length} (编辑器: ${editorImages.length}, 已有: ${existingImages.length})`)
+      
       return {
         ...prev,
-        images: editorImages
+        images: mergedImages
       }
     })
   }
@@ -227,6 +234,12 @@ function App() {
         
         // 保存当前访问码
         const currentCode = inputAccessCode
+        
+        // 显示图片加载日志，确保从服务器获取的图片被正确处理
+        console.log('从服务器获取的图片数量:', fetchedContent.images.length)
+        if(fetchedContent.images.length > 0) {
+          console.log('首张图片URL前100个字符:', fetchedContent.images[0].substring(0, 100))
+        }
         
         // 存储内容并更新状态
         setContent(fetchedContent)
@@ -349,6 +362,22 @@ function App() {
 
   // 获取编辑器引用
   const [editor, setEditor] = useState<any>(null)
+
+  // 当内容加载时，显示图片数量，并确保所有图片正确加载
+  useEffect(() => {
+    if (isContentLoaded && content.images && content.images.length > 0) {
+      console.log('内容已加载，包含图片数量:', content.images.length)
+      
+      // 验证图片加载情况
+      content.images.forEach((imageUrl, index) => {
+        // 创建一个图片元素来测试图片加载
+        const img = new Image()
+        img.onload = () => console.log(`图片 ${index+1} 加载成功 (${img.width}x${img.height})`)
+        img.onerror = () => console.error(`图片 ${index+1} 加载失败`)
+        img.src = imageUrl
+      })
+    }
+  }, [isContentLoaded, content.images])
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center overflow-hidden">

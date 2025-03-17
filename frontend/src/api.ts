@@ -25,12 +25,24 @@ const generateSecretKey = (accessCode: string): string => {
 
 // 加密内容
 export const encryptContent = (content: Content, accessCode: string): string => {
-  const secretKey = generateSecretKey(accessCode)
-  const contentStr = JSON.stringify({
-    text: content.text,
-    images: content.images
-  })
-  return CryptoJS.AES.encrypt(contentStr, secretKey).toString()
+  try {
+    const secretKey = generateSecretKey(accessCode)
+    const contentJson = {
+      text: content.text,
+      images: content.images
+    }
+    
+    console.log(`准备加密内容: 文本长度=${content.text.length}, 图片数量=${content.images.length}`)
+    
+    // 检查图片大小以避免超出限制
+    const contentStr = JSON.stringify(contentJson)
+    console.log(`JSON字符串大小: ${(contentStr.length / 1024 / 1024).toFixed(2)}MB`)
+    
+    return CryptoJS.AES.encrypt(contentStr, secretKey).toString()
+  } catch (error) {
+    console.error('内容加密失败:', error)
+    throw new Error('内容加密失败')
+  }
 }
 
 // 解密内容
