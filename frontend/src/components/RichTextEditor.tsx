@@ -10,20 +10,24 @@ interface RichTextEditorProps {
   initialValue: string
   onChange: (html: string) => void
   onImageUpload: (imageDataUrl: string) => boolean
+  onImagesSync?: (images: string[]) => void  // 添加图片同步回调
   isReadOnly?: boolean
   onSave?: () => void
   showSaveButton?: boolean
   isModified?: boolean
+  onEditorReady?: (editor: any) => void  // 添加编辑器实例回调
 }
 
 const RichTextEditor = ({
   initialValue,
   onChange,
   onImageUpload,
+  onImagesSync,
   isReadOnly = false,
   onSave,
   showSaveButton = false,
-  isModified = false
+  isModified = false,
+  onEditorReady
 }: RichTextEditorProps) => {
   // 用于跟踪内容是否超过容器高度
   const [shouldShowScroll, setShouldShowScroll] = useState(false)
@@ -75,8 +79,13 @@ const RichTextEditor = ({
     if (editor) {
       // 编辑器初始化后检查内容高度
       setTimeout(checkContentHeight, 50) // 短暂延迟确保DOM渲染完成
+      
+      // 提供编辑器实例给父组件
+      if (onEditorReady) {
+        onEditorReady(editor)
+      }
     }
-  }, [editor, checkContentHeight])
+  }, [editor, checkContentHeight, onEditorReady])
 
   // 监听窗口大小变化时重新检查内容高度
   useEffect(() => {
@@ -111,19 +120,22 @@ const RichTextEditor = ({
       const files = event.target.files
       if (!files || !files.length) return
       
-      const file = files[0]
+      // 支持多图上传
+      const uploadedImages: string[] = []
+      let successCount = 0
       
-      // 检查图片大小限制
-      if (file.size > 3 * 1024 * 1024) {
-        alert('图片大小不能超过3MB')
-        return
-      }
-      
-      try {
-        // 读取文件为DataURL
-        const reader = new FileReader()
-        reader.onload = () => {
-          const imageDataUrl = reader.result as string
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        
+        // 检查图片大小限制
+        if (file.size > 3 * 1024 * 1024) {
+          alert(`图片 ${file.name} 大小超过3MB限制`)
+          continue
+        }
+        
+        try {
+          // 读取文件为DataURL
+          const imageDataUrl = await readFileAsDataURL(file)
           
           // 通过回调函数处理图片
           const success = onImageUpload(imageDataUrl)
@@ -131,17 +143,72 @@ const RichTextEditor = ({
           // 如果成功，插入图片到编辑器
           if (success && editor) {
             editor.chain().focus().setImage({ src: imageDataUrl }).run()
-            // 图片加载后检查内容高度
-            setTimeout(checkContentHeight, 100)
+            uploadedImages.push(imageDataUrl)
+            successCount++
+          } else {
+            console.log('图片上传被拒绝:', file.name)
+            break // 如果已达到限制，停止处理后续图片
           }
+        } catch (error) {
+          console.error('图片上传失败', error)
         }
-        reader.readAsDataURL(file)
-      } catch (error) {
-        console.error('图片上传失败', error)
+      }
+      
+      // 图片加载后检查内容高度
+      setTimeout(checkContentHeight, 100)
+      
+      // 如果有图片未能上传，给出提示
+      if (successCount < files.length) {
+        alert(`已达到最大图片数量限制，仅插入了 ${successCount} 张图片`)
+      }
+      
+      // 清空input以允许重复选择相同文件
+      event.target.value = ''
+      
+      // 同步所有图片到外部
+      if (onImagesSync && uploadedImages.length > 0) {
+        // 获取编辑器中所有图片
+        const allImages = extractImagesFromEditor(editor)
+        onImagesSync(allImages)
       }
     },
-    [editor, onImageUpload, isReadOnly, checkContentHeight]
+    [editor, onImageUpload, isReadOnly, checkContentHeight, onImagesSync]
   )
+  
+  // 从编辑器内容中提取所有图片
+  const extractImagesFromEditor = useCallback((editor: any) => {
+    if (!editor) return []
+    
+    const images: string[] = []
+    const content = editor.getJSON()
+    
+    // 递归查找图片节点
+    const findImages = (node: any) => {
+      if (node.type === 'image' && node.attrs && node.attrs.src) {
+        images.push(node.attrs.src)
+      }
+      
+      if (node.content && Array.isArray(node.content)) {
+        node.content.forEach(findImages)
+      }
+    }
+    
+    if (content && content.content) {
+      content.content.forEach(findImages)
+    }
+    
+    return images
+  }, [])
+  
+  // 从File对象创建DataURL
+  const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
 
   // 插入链接
   const addLink = useCallback(() => {
@@ -166,6 +233,23 @@ const RichTextEditor = ({
     // 插入链接后检查内容高度
     setTimeout(checkContentHeight, 50)
   }, [editor, isReadOnly, checkContentHeight])
+
+  // 监听编辑器内容变化同步图片
+  useEffect(() => {
+    if (editor && onImagesSync && !isReadOnly) {
+      const updateImagesList = () => {
+        const images = extractImagesFromEditor(editor)
+        onImagesSync(images)
+      }
+      
+      // 编辑器内容变化时
+      editor.on('update', updateImagesList)
+      
+      return () => {
+        editor.off('update', updateImagesList)
+      }
+    }
+  }, [editor, onImagesSync, isReadOnly, extractImagesFromEditor])
 
   if (!editor) {
     return null
@@ -205,6 +289,7 @@ const RichTextEditor = ({
             <input
               type="file"
               accept="image/*"
+              multiple  // 支持多图选择
               onChange={handleImageUpload}
               style={{ display: 'none' }}
             />

@@ -68,9 +68,13 @@ function App() {
     maxSize: 3 * 1024 * 1024, // 3MB
     maxFiles: 10,
     onDrop: async (acceptedFiles) => {
-      if (content.images.length + acceptedFiles.length > 10) {
-        setError('最多只能上传10张图片')
-        return
+      // 检查是否会超过最大图片数量
+      const totalImages = content.images.length + acceptedFiles.length
+      if (totalImages > 10) {
+        setError(`最多只能上传10张图片，当前已有${content.images.length}张，只能再添加${10 - content.images.length}张`)
+        // 如果有部分图片可以添加，则继续处理有效部分
+        acceptedFiles = acceptedFiles.slice(0, 10 - content.images.length)
+        if (acceptedFiles.length === 0) return
       }
 
       const newImages = await Promise.all(
@@ -83,10 +87,18 @@ function App() {
         })
       )
 
+      // 添加到内容中
       setContent(prev => ({
         ...prev,
         images: [...prev.images, ...newImages]
       }))
+      
+      // 将拖拽上传的图片也插入到编辑器中
+      if (editor && newImages.length > 0) {
+        newImages.forEach(imageUrl => {
+          editor.chain().focus().setImage({ src: imageUrl }).run()
+        })
+      }
     }
   })
 
@@ -99,16 +111,38 @@ function App() {
     setError('')
   }
 
+  // 处理编辑器中图片的同步
+  const syncImagesFromEditor = (editorImages: string[]) => {
+    console.log('从编辑器同步图片，数量:', editorImages.length)
+    
+    // 更新content中的images数组，保持图片不重复
+    setContent(prev => {
+      // 使用编辑器中的图片作为唯一来源
+      return {
+        ...prev,
+        images: editorImages
+      }
+    })
+  }
+
+  // 计算剩余可上传图片数量
+  const remainingImagesCount = 10 - content.images.length // 假设最大允许10张图片
+
+  // 处理图片上传
   const handleImageUpload = (imageDataUrl: string) => {
+    // 检查是否已达到最大图片数量限制
     if (content.images.length >= 10) {
       setError('最多只能上传10张图片')
       return false
     }
 
+    // 添加新图片到内容中
     setContent(prev => ({
       ...prev,
       images: [...prev.images, imageDataUrl]
     }))
+    
+    // 上传成功
     return true
   }
 
@@ -313,6 +347,9 @@ function App() {
     }
   }
 
+  // 获取编辑器引用
+  const [editor, setEditor] = useState<any>(null)
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center overflow-hidden">
       {/* 顶部访问码输入和按钮区域 - 固定在顶部 */}
@@ -434,10 +471,12 @@ function App() {
               initialValue={content.text}
               onChange={handleContentChange}
               onImageUpload={handleImageUpload}
+              onImagesSync={syncImagesFromEditor}
               isReadOnly={false}
               onSave={handleSaveContent}
               showSaveButton={isContentLoaded}
               isModified={isContentModified}
+              onEditorReady={setEditor}
             />
           </div>
           
@@ -454,22 +493,27 @@ function App() {
             </p>
             {content.images.length > 0 && (
               <div className="text-sm text-blue-500 mt-2">
-                已上传 {content.images.length}/10 张图片
+                已上传 {content.images.length}/10 张图片，还可上传 {remainingImagesCount} 张
               </div>
             )}
           </div>
 
-          {/* 图片预览区域 */}
+          {/* 图片预览区域 - 缩略图样式 */}
           {content.images.length > 0 && (
             <div className="mb-4">
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-lg font-medium mb-2">已上传图片预览</h3>
+              <div className="grid grid-cols-5 gap-4">
                 {content.images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={image}
-                    alt={`上传图片 ${index + 1}`}
-                    className="rounded-lg"
-                  />
+                  <div 
+                    key={index} 
+                    className="thumbnail-container"
+                  >
+                    <img
+                      src={image}
+                      alt={`上传图片 ${index + 1}`}
+                      className="thumbnail-image"
+                    />
+                  </div>
                 ))}
               </div>
             </div>

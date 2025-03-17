@@ -39,3 +39,28 @@
 .read-the-docs {
   color: #888;
 }
+
+/* 图片缩略图样式 */
+.thumbnail-container {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background-color: #fff;
+  transition: all 0.2s ease;
+  aspect-ratio: 1/1;
+  overflow: hidden;
+}
+
+.thumbnail-container:hover {
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
