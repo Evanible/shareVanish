@@ -134,13 +134,12 @@ const RichTextEditor = ({
       const uploadedImages: string[] = []
       let successCount = 0
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        
+      // 创建处理单个图片的函数
+      const processImage = async (file: File) => {
         // 检查图片大小限制
         if (file.size > 3 * 1024 * 1024) {
           alert(`图片 ${file.name} 大小超过3MB限制`)
-          continue
+          return false
         }
         
         try {
@@ -154,14 +153,22 @@ const RichTextEditor = ({
           if (success && editor) {
             editor.chain().focus().setImage({ src: imageDataUrl }).run()
             uploadedImages.push(imageDataUrl)
-            successCount++
+            return true
           } else {
             console.log('图片上传被拒绝:', file.name)
-            break // 如果已达到限制，停止处理后续图片
+            return false // 上传失败
           }
         } catch (error) {
           console.error('图片上传失败', error)
+          return false
         }
+      }
+      
+      // 逐个处理图片，而不是在循环中
+      for (let i = 0; i < files.length; i++) {
+        const result = await processImage(files[i])
+        if (result) successCount++
+        else if (successCount === 0) break // 如果第一张就失败，停止处理
       }
       
       // 图片加载后检查内容高度
@@ -178,8 +185,9 @@ const RichTextEditor = ({
       // 同步所有图片到外部
       if (onImagesSync && uploadedImages.length > 0) {
         // 获取编辑器中所有图片
-        const allImages = extractImagesFromEditor(editor)
-        onImagesSync(allImages)
+        const images = extractImagesFromEditor(editor)
+        console.log('同步编辑器中的图片到外部，数量:', images.length)
+        onImagesSync(images)
       }
     },
     [editor, onImageUpload, isReadOnly, checkContentHeight, onImagesSync]
@@ -249,11 +257,15 @@ const RichTextEditor = ({
     if (editor && onImagesSync && !isReadOnly) {
       const updateImagesList = () => {
         const images = extractImagesFromEditor(editor)
+        console.log('编辑器内容变化，当前图片数量:', images.length)
         onImagesSync(images)
       }
       
-      // 编辑器内容变化时
+      // 在编辑器内容变化或删除操作时更新图片列表
       editor.on('update', updateImagesList)
+      
+      // 在编辑器初始化时执行一次同步
+      updateImagesList()
       
       return () => {
         editor.off('update', updateImagesList)

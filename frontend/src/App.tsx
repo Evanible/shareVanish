@@ -379,6 +379,93 @@ function App() {
     }
   }, [isContentLoaded, content.images])
 
+  // 从预览区域删除图片
+  const handleDeleteImage = (indexToDelete: number) => {
+    console.log('从预览区删除图片，索引:', indexToDelete)
+    
+    // 删除内容中的图片
+    setContent(prev => {
+      const updatedImages = prev.images.filter((_, index) => index !== indexToDelete)
+      return {
+        ...prev,
+        images: updatedImages
+      }
+    })
+    
+    // 如果编辑器实例存在，也从编辑器中删除对应图片
+    if (editor) {
+      // 从编辑器的JSON结构中查找并删除对应图片
+      const content = editor.getJSON()
+      let imageIndex = 0
+      let nodeToRemove = null
+      let nodePos = -1
+      
+      // 递归查找要删除的图片节点
+      const findImageToDelete = (node: any, pos = 0) => {
+        if (node.type === 'image') {
+          if (imageIndex === indexToDelete) {
+            nodeToRemove = node
+            nodePos = pos
+            return true
+          }
+          imageIndex++
+        }
+        
+        if (node.content) {
+          for (let i = 0; i < node.content.length; i++) {
+            const childPos = pos + 1 + (i > 0 ? editor.getJSON().content.slice(0, i).reduce((sum, n) => sum + nodeSize(n), 0) : 0)
+            if (findImageToDelete(node.content[i], childPos)) return true
+          }
+        }
+        return false
+      }
+      
+      // 计算节点大小
+      const nodeSize = (node: any): number => {
+        if (!node.content) return 1
+        return 1 + node.content.reduce((sum: number, n: any) => sum + nodeSize(n), 0)
+      }
+      
+      // 从编辑器内容中删除图片
+      // 注意：由于Tiptap的结构复杂，这里我们可能需要更简单的方法
+      // 例如重新设置编辑器内容，但移除指定索引的图片
+      try {
+        // 尝试执行删除
+        const currentHTML = editor.getHTML()
+        const images = extractImagesFromHTML(currentHTML)
+        
+        if (images.length > indexToDelete) {
+          const imgToRemove = images[indexToDelete]
+          const newHTML = removeImageFromHTML(currentHTML, imgToRemove)
+          editor.commands.setContent(newHTML)
+        }
+      } catch (error) {
+        console.error('从编辑器删除图片失败:', error)
+      }
+    }
+  }
+  
+  // 从HTML中提取所有图片URL
+  const extractImagesFromHTML = (html: string): string[] => {
+    const images: string[] = []
+    const imgRegex = /<img[^>]+src="([^">]+)"/g
+    let match
+    
+    while ((match = imgRegex.exec(html)) !== null) {
+      images.push(match[1])
+    }
+    
+    return images
+  }
+  
+  // 从HTML中移除特定图片
+  const removeImageFromHTML = (html: string, imageUrl: string): string => {
+    // 转义特殊字符，以便在正则表达式中使用
+    const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const imgRegex = new RegExp(`<img[^>]+src="${escapedUrl}"[^>]*>`, 'g')
+    return html.replace(imgRegex, '')
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center overflow-hidden">
       {/* 顶部访问码输入和按钮区域 - 固定在顶部 */}
@@ -542,6 +629,14 @@ function App() {
                       alt={`上传图片 ${index + 1}`}
                       className="thumbnail-image"
                     />
+                    {/* 删除按钮 */}
+                    <button
+                      className="delete-button"
+                      onClick={() => handleDeleteImage(index)}
+                      title="删除图片"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
