@@ -636,7 +636,7 @@ function App() {
                       title="删除图片"
                     >
                       ✕
-                    </button>
+        </button>
                   </div>
                 ))}
               </div>
