@@ -279,41 +279,43 @@ const RichTextEditor = ({
 
   return (
     <div className="rich-text-editor">
-      {/* 工具栏 - 只在非只读模式下显示 */}
-      {!isReadOnly && (
-        <div className="editor-toolbar">
+      {/* 菜单栏 - 只在非只读模式显示 */}
+      {editor && !isReadOnly && (
+        <div className="menu-bar">
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={editor.isActive('bold') ? 'is-active' : ''}
             title="粗体"
           >
-            <strong>B</strong>
+            <span className="format-icon">B</span>
           </button>
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
             className={editor.isActive('italic') ? 'is-active' : ''}
             title="斜体"
           >
-            <em>I</em>
+            <span className="format-icon" style={{fontStyle: 'italic'}}>I</span>
           </button>
           <button
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             className={editor.isActive('underline') ? 'is-active' : ''}
             title="下划线"
           >
-            <u>U</u>
+            <span className="format-icon" style={{textDecoration: 'underline'}}>U</span>
           </button>
           <button onClick={addLink} title="插入链接">
-            🔗
+            <span className="format-icon">🔗</span>
           </button>
-          <label className="image-button" title="插入图片">
-            🖼️
+          <label className="file-input-container" title="插入图片" style={{width: '28px', height: '28px'}}>
+            <button>
+              <span className="format-icon">📷</span>
+            </button>
             <input
               type="file"
               accept="image/*"
               multiple  // 支持多图选择
               onChange={handleImageUpload}
-              style={{ display: 'none' }}
+              className="file-input"
             />
           </label>
           <button
@@ -321,39 +323,39 @@ const RichTextEditor = ({
             className={editor.isActive('code') ? 'is-active' : ''}
             title="行内代码"
           >
-            `
+            <span className="format-icon">`</span>
           </button>
           <button
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             className={editor.isActive('codeBlock') ? 'is-active' : ''}
             title="代码块"
           >
-            ```
+            <span className="format-icon">```</span>
           </button>
           <button
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             className={editor.isActive('bulletList') ? 'is-active' : ''}
             title="无序列表"
           >
-            •
+            <span className="format-icon">•</span>
           </button>
           <button
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             className={editor.isActive('orderedList') ? 'is-active' : ''}
             title="有序列表"
           >
-            1.
+            <span className="format-icon">1.</span>
           </button>
           
           {/* 保存按钮 - 更改样式使其与其他工具栏按钮一致 */}
           {showSaveButton && onSave && (
             <button 
               onClick={onSave}
-              className={isModified ? 'is-active' : 'disabled'}
+              className={`save-button ${isModified ? 'is-modified' : ''}`}
               title="保存更改"
               disabled={!isModified}
             >
-              💾
+              保存
             </button>
           )}
         </div>
