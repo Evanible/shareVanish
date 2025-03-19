@@ -97,11 +97,15 @@ const RichTextEditor = ({
   // 当initialValue变化时更新编辑器内容
   useEffect(() => {
     if (editor && initialValue !== editor.getHTML()) {
-      console.log('编辑器内容更新:', initialValue ? '有内容' : '空内容')
-      editor.commands.setContent(initialValue)
-      
-      // 内容变化时检查高度
-      setTimeout(checkContentHeight, 50)
+      // 只有当编辑器是空的或者是初始化时才更新内容
+      // 防止覆盖用户正在编辑的内容
+      if (editor.isEmpty || !editor.isFocused) {
+        console.log('编辑器内容更新:', initialValue ? '有内容' : '空内容')
+        editor.commands.setContent(initialValue)
+        
+        // 内容变化时检查高度
+        setTimeout(checkContentHeight, 50)
+      }
     }
   }, [initialValue, editor, checkContentHeight])
 
