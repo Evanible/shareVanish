@@ -89,11 +89,9 @@
 
 /* 页头样式 */
 header {
-  background-color: #1a1a1a;
-  padding: 1rem;
-  border-bottom: 1px solid #333;
   margin-bottom: 20px;
   width: 100%;
+  padding: 10px 20px;
   box-sizing: border-box;
 }
 
@@ -109,59 +107,66 @@ header {
 }
 
 .status-text {
-  color: #ddd;
-  font-size: 0.9rem;
+  color: #333;
+  font-size: 14px;
 }
 
 .status-text .access-code {
-  background-color: #2a2a2a;
+  background-color: #f8f9fa;
   padding: 2px 5px;
   border-radius: 3px;
   font-family: 'Courier New', monospace;
-  color: #66d9ef;
+  color: #4a7bfc;
+  font-weight: bold;
 }
 
 .timer-info {
   margin-left: 8px;
-  color: #aaa;
-  font-size: 0.85rem;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.timer {
+  font-weight: bold;
+  color: #4a7bfc;
 }
 
 .action-container {
   display: flex;
-  gap: 0.5rem;
+  gap: 10px;
   justify-content: flex-end;
 }
 
 .action-button {
-  background-color: #333;
-  color: #fff;
+  background-color: #4a7bfc;
+  color: white;
   border: none;
   border-radius: 4px;
-  padding: 0.5rem 1rem;
+  padding: 8px 16px;
+  font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .action-button:hover {
-  background-color: #444;
+  background-color: #3a6bee;
 }
 
 .action-button:disabled {
-  background-color: #222;
+  background-color: #cccccc;
   color: #666;
   cursor: not-allowed;
 }
 
 .extract-button {
-  background-color: #2c3e50;
+  background-color: #6c757d;
 }
 
 .extract-button:hover {
-  background-color: #34495e;
+  background-color: #5a6268;
 }
 
-/* 标题 - 保留原有样式 */
+/* 标题 */
 .title {
   font-size: 32px;
   margin-bottom: 16px;
@@ -201,20 +206,6 @@ header {
   font-weight: bold;
   margin: 0 8px;
   letter-spacing: 1px;
-}
-
-/* 时间显示器 */
-.timer-container {
-  display: inline-block;
-  margin-left: 16px;
-  font-size: 14px;
-  color: #6c757d;
-  vertical-align: middle;
-}
-
-.timer {
-  font-weight: bold;
-  color: #4a7bfc;
 }
 
 /* 弹窗遮罩层 */
