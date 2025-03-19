@@ -47,7 +47,7 @@ function App() {
         const createdAt = typeof content.createdAt === 'string' 
           ? new Date(content.createdAt).getTime() 
           : content.createdAt
-
+        
         const expiryTime = createdAt + (24 * 60 * 60 * 1000) // 24小时后过期
         const remainingMs = expiryTime - now
         
@@ -60,7 +60,7 @@ function App() {
         const remainingHoursValue = Math.max(0, parseFloat((remainingMs / (60 * 60 * 1000)).toFixed(1)))
         setRemainingHours(remainingHoursValue)
       }
-      
+
       calculateRemainingTime()
       const timer = setInterval(calculateRemainingTime, 60000) // 每分钟更新一次
       
@@ -75,7 +75,7 @@ function App() {
     }
     
     const newInputs = [...codeInputs];
-    newInputs[index] = value.toUpperCase();
+    newInputs[index] = value; // 保持原始大小写
     setCodeInputs(newInputs);
     
     // 更新总的访问码
@@ -277,16 +277,16 @@ function App() {
                 className="code-input"
               />
             ))}
-          </div>
-          
-          <button 
-            onClick={handleFetchContent}
-            disabled={inputAccessCode.length !== 4 || isLoading}
+            </div>
+              
+              <button
+                onClick={handleFetchContent}
+                disabled={inputAccessCode.length !== 4 || isLoading}
             className="action-button"
-          >
+              >
             {isLoading ? '加载中...' : '提取'}
-          </button>
-        </div>
+              </button>
+            </div>
         
         <div className="action-container">
           <button 
@@ -296,12 +296,12 @@ function App() {
           >
             {isLoading ? '处理中...' : isContentLoaded ? '保存内容' : '创建访问码'}
           </button>
-          
-          {isContentLoaded && remainingHours !== null && (
+            
+            {isContentLoaded && remainingHours !== null && (
             <div className="status-indicator">
               有效期: {remainingHours > 0 ? `${remainingHours}小时` : '即将过期'}
-            </div>
-          )}
+              </div>
+            )}
         </div>
       </header>
 
@@ -309,14 +309,14 @@ function App() {
       <main>
         {/* 编辑区域 */}
         <section className="editor-section">
-          <RichTextEditor
-            initialValue={content.text}
+            <RichTextEditor 
+              initialValue={content.text}
             onChange={handleTextChange}
-            onImageUpload={handleImageUpload}
-            isReadOnly={false}
+              onImageUpload={handleImageUpload}
+              isReadOnly={false}
             showSaveButton={false}
             onSave={handleUpdateContent}
-            isModified={isContentModified}
+              isModified={isContentModified}
           />
         </section>
 
@@ -335,7 +335,7 @@ function App() {
           {/* 图片预览区 - 只在有图片时显示 */}
           {content.images.length > 0 && (
             <div className="preview-section">
-              {content.images.map((image, index) => (
+                {content.images.map((image, index) => (
                 <div key={index} className="thumbnail">
                   <img src={image} alt={`上传图片 ${index + 1}`} />
                   <button
@@ -343,9 +343,9 @@ function App() {
                     onClick={() => handleImageDelete(index)}
                   >
                     ×
-                  </button>
-                </div>
-              ))}
+        </button>
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -367,7 +367,7 @@ function App() {
       {error && (
         <div className="notification" style={{ backgroundColor: "#f44336" }}>
           {error}
-        </div>
+      </div>
       )}
     </div>
   )

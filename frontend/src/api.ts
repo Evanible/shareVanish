@@ -1,5 +1,10 @@
-const API_BASE_URL = 'http://localhost:3000/api'
 import CryptoJS from 'crypto-js'
+
+// 同时支持本地开发环境和局域网访问
+// 注意：在生产环境中应使用相对路径或环境变量
+const API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3000/api'
+  : `http://192.168.31.99:3000/api`
 
 export interface Content {
   text: string
@@ -86,14 +91,24 @@ export const decryptContent = (encryptedData: string, accessCode: string): Conte
   }
 }
 
+// 添加统一的请求头配置
+const headers = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json'
+};
+
 export const createContent = async (content: Content): Promise<ApiResponse<{ accessCode: string }>> => {
   try {
     console.log('准备创建内容...')
     
     // 首先从服务器获取访问码
     const codeResponse = await fetch(`${API_BASE_URL}/content/accessCode`, {
-      method: 'POST'
+      method: 'POST',
+      headers
     })
+    
+    // 打印响应状态用于调试
+    console.log('访问码API响应状态:', codeResponse.status)
     
     const codeData = await codeResponse.json()
     if (!codeResponse.ok) {
@@ -113,20 +128,19 @@ export const createContent = async (content: Content): Promise<ApiResponse<{ acc
       createdAt: content.createdAt
     }
     
-    console.log('发送加密内容到服务器...')
-    const response = await fetch(`${API_BASE_URL}/content`, {
+    // 发送创建内容的请求
+    const contentResponse = await fetch(`${API_BASE_URL}/content`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(payload)
     })
     
-    const data = await response.json()
-    console.log('收到服务器响应:', data)
+    // 打印响应状态用于调试
+    console.log('创建内容API响应状态:', contentResponse.status)
     
-    if (!response.ok) {
-      throw new Error(data.error || '服务器错误')
+    const data = await contentResponse.json()
+    if (!contentResponse.ok) {
+      throw new Error(data.error || '创建内容失败')
     }
     
     return {
@@ -147,20 +161,17 @@ export const createContent = async (content: Content): Promise<ApiResponse<{ acc
 export const getContent = async (accessCode: string): Promise<ApiResponse<Content>> => {
   try {
     console.log('发送获取内容请求，访问码:', accessCode)
-    const response = await fetch(`${API_BASE_URL}/content/${accessCode}`)
+    const response = await fetch(`${API_BASE_URL}/content/${accessCode}`, {
+      headers
+    })
     
-    // 检查HTTP状态
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('获取内容HTTP错误:', response.status, errorText)
-      return {
-        success: false,
-        error: `服务器错误 (${response.status}): ${errorText}`
-      }
-    }
+    // 打印响应状态用于调试
+    console.log('获取内容API响应状态:', response.status)
     
     const data = await response.json()
-    console.log('服务器响应:', JSON.stringify(data).substring(0, 100) + '...')
+    if (!response.ok) {
+      throw new Error(data.error || '获取内容失败')
+    }
     
     // 如果请求成功，解密内容
     if (data.success && data.data && data.data.encryptedData) {
@@ -210,30 +221,25 @@ export const updateContent = async (
   try {
     console.log('准备更新内容，访问码:', accessCode.slice(0, 2) + '**')
     
-    // 加密内容
+    // 使用访问码加密内容
     const encryptedData = encryptContent(content, accessCode)
     
-    // 发送更新请求
     const response = await fetch(`${API_BASE_URL}/content/${accessCode}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ encryptedData }),
+      headers,
+      body: JSON.stringify({
+        encryptedData,
+        createdAt: content.createdAt
+      })
     })
     
-    // 处理错误
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('更新内容HTTP错误:', response.status, errorText)
-      return {
-        success: false,
-        error: `服务器错误 (${response.status}): ${errorText}`
-      }
-    }
+    // 打印响应状态用于调试
+    console.log('更新内容API响应状态:', response.status)
     
-    // 解析响应
     const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || '更新内容失败')
+    }
     
     if (data.success) {
       console.log('内容更新成功')

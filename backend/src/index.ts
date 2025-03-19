@@ -32,7 +32,8 @@ app.use(express.json({ limit: '10mb' }))
 // 路由
 app.use('/api/content', contentRouter)
 
-// 启动服务器
-app.listen(port, () => {
+// 启动服务器，监听所有网络接口
+app.listen(Number(port), '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`)
+  console.log(`可从局域网访问: http://YOUR_IP:${port}`)
 }) 
