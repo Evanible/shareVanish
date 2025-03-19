@@ -35,7 +35,7 @@ function App() {
   // 添加全局键盘事件以支持Enter键快速提取
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // 当按下ESC键时关闭弹窗
+      // 按ESC键关闭弹窗
       if (e.key === 'Escape' && showPopup) {
         setShowPopup(false);
         setPopupError('');
@@ -47,6 +47,18 @@ function App() {
         // 防止事件冒泡导致编辑器中回车问题
         e.preventDefault();
         handleFetchContent();
+      }
+      
+      // 完全阻止编辑器外的回车键触发保存按钮状态变化
+      if (e.key === 'Enter') {
+        // 检查焦点是否在编辑器内
+        const activeElement = document.activeElement;
+        const isEditorFocused = activeElement?.closest('.ProseMirror') !== null;
+        
+        // 如果焦点不在编辑器内或访问码输入框内，阻止默认行为
+        if (!isEditorFocused && !isCodeInputFocused) {
+          e.preventDefault();
+        }
       }
     };
 
