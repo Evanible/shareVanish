@@ -113,12 +113,63 @@ function App() {
         prevInput.focus();
       }
     }
+    
+    // 当在最后一个输入框按回车键时，执行提取内容
+    if (e.key === 'Enter' && index === 3 && codeInputs[3] !== '') {
+      handleFetchContentFromPopup();
+    }
   };
 
   // 处理单个输入框变化
   const handleCodeInputChange = (index: number, value: string) => {
+    // 检查是否是粘贴的多个字符
     if (value.length > 1) {
-      value = value.charAt(0); // 每个输入框只允许一个字符
+      // 可能是粘贴的完整访问码，尝试分配给所有输入框
+      if (value.length <= 4) {
+        const chars = value.substring(0, 4).split('');
+        const newInputs = [...codeInputs];
+        
+        // 填充当前和后续输入框
+        for (let i = 0; i < chars.length && index + i < 4; i++) {
+          newInputs[index + i] = chars[i];
+        }
+        
+        setCodeInputs(newInputs);
+        setInputAccessCode(newInputs.join(''));
+        
+        // 自动聚焦到最后一个有值的输入框之后的输入框
+        const nextIndex = Math.min(index + value.length, 3);
+        const nextInput = document.getElementById(`popup-code-input-${nextIndex}`);
+        if (nextInput && nextIndex < 3) {
+          nextInput.focus();
+        }
+        
+        // 检查是否所有输入框都已填满
+        if (newInputs.every(input => input.trim() !== '')) {
+          // 所有输入框都填满了，立即提取内容
+          handleFetchContentFromPopup();
+        }
+        
+        return;
+      } else {
+        // 如果粘贴的内容超过4个字符，只取前4个
+        if (index === 0) {
+          const chars = value.substring(0, 4).split('');
+          const newInputs = chars.concat(''.repeat(4 - chars.length).split(''));
+          setCodeInputs(newInputs);
+          setInputAccessCode(newInputs.join(''));
+          
+          // 检查是否所有输入框都已填满
+          if (newInputs.every(input => input.trim() !== '')) {
+            // 所有输入框都填满了，立即提取内容
+            handleFetchContentFromPopup();
+          }
+          
+          return;
+        } else {
+          value = value.charAt(0); // 如果不是在第一个框，只保留第一个字符
+        }
+      }
     }
     
     const newInputs = [...codeInputs];
@@ -291,7 +342,20 @@ function App() {
         setCodeInputs(codeArray.concat(''.repeat(4 - codeArray.length).split('')))
         
         setInputAccessCode(newAccessCode)
-        setNotificationMessage(`已创建新内容，访问码：${newAccessCode}`)
+        
+        // 自动复制访问码到剪贴板
+        if (navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(newAccessCode)
+            setNotificationMessage(`已创建新内容，访问码已复制到剪贴板：${newAccessCode}`)
+          } catch (err) {
+            console.error('复制失败:', err)
+            setNotificationMessage(`已创建新内容，访问码：${newAccessCode}`)
+          }
+        } else {
+          setNotificationMessage(`已创建新内容，访问码：${newAccessCode}`)
+        }
+        
         setIsContentLoaded(true)
         setIsContentModified(false)
         
@@ -405,13 +469,6 @@ function App() {
             <div className="access-code-display">
               <span>访问码: </span>
               <strong>{accessCode}</strong>
-              <button 
-                onClick={handleCopyCode} 
-                className="copy-button"
-                title="复制访问码"
-              >
-                复制
-              </button>
             </div>
           )}
         </div>
