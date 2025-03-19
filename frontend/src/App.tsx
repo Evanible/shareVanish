@@ -306,13 +306,8 @@ function App() {
     try {
       const response = await updateContent(content, accessCode)
       if (response.success) {
-        setNotificationMessage('内容已成功保存')
+        // 不再显示保存成功提示
         setIsContentModified(false)
-        
-        // 3秒后清除通知
-        setTimeout(() => {
-          setNotificationMessage('')
-        }, 3000)
       } else {
         setError(response.error || '保存内容失败')
       }
@@ -444,6 +439,8 @@ function App() {
                   </span>
                 )}
               </div>
+            ) : notificationMessage ? (
+              <div className="status-text" dangerouslySetInnerHTML={{ __html: notificationMessage }}></div>
             ) : (
               <div className="status-text"></div>
             )}
@@ -575,12 +572,6 @@ function App() {
       <footer>
         <p>安全地分享临时内容</p>
       </footer>
-
-      {/* 通知区域 */}
-      {notificationMessage && (
-        <div className="notification" dangerouslySetInnerHTML={{ __html: notificationMessage }}>
-        </div>
-      )}
 
       {/* 错误提示 */}
       {error && (
