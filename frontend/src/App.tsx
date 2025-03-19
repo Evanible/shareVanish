@@ -93,12 +93,20 @@ function App() {
     if (isContentLoaded && content.createdAt) {
       const calculateRemainingTime = () => {
         const now = Date.now()
-        // 确保createdAt是数字格式
-        const createdAt = typeof content.createdAt === 'string' 
-          ? new Date(content.createdAt).getTime() 
-          : content.createdAt
         
-        const expiryTime = createdAt + (24 * 60 * 60 * 1000) // 24小时后过期
+        // 确保createdAt是有效的数字
+        let createdAtTime = content.createdAt
+        if (typeof createdAtTime === 'string') {
+          createdAtTime = new Date(createdAtTime).getTime()
+        }
+        
+        // 验证createdAt是否为有效数字
+        if (isNaN(createdAtTime)) {
+          console.error('无效的createdAt时间戳:', content.createdAt)
+          createdAtTime = Date.now() // 如果无效，使用当前时间
+        }
+        
+        const expiryTime = createdAtTime + (24 * 60 * 60 * 1000) // 24小时后过期
         const remainingMs = expiryTime - now
         
         if (remainingMs <= 0) {
@@ -219,10 +227,20 @@ function App() {
     try {
       const response = await getContent(inputAccessCode)
       if (response.success && response.data) {
-        setContent(response.data)
+        // 确保createdAt是有效的时间戳
+        const contentData = {
+          ...response.data,
+          createdAt: response.data.createdAt || Date.now()  // 确保有有效的createdAt
+        };
+        
+        setContent(contentData)
         setAccessCode(inputAccessCode)
         setIsContentLoaded(true)
         setIsContentModified(false)
+        
+        // 计算剩余时间
+        const hoursRemaining = calculateRemainingHours(contentData.createdAt);
+        setRemainingHours(hoursRemaining);
       } else {
         setError(response.error || '获取内容失败')
       }
@@ -245,14 +263,20 @@ function App() {
     try {
       const response = await getContent(inputAccessCode);
       if (response.success && response.data) {
-        // 成功获取内容
-        setContent(response.data);
+        // 成功获取内容，确保createdAt是有效的时间戳
+        const contentData = {
+          ...response.data,
+          createdAt: response.data.createdAt || Date.now()  // 确保有有效的createdAt
+        };
+        
+        // 设置内容
+        setContent(contentData);
         setAccessCode(inputAccessCode);
         setIsContentLoaded(true);
         setIsContentModified(false);
         
         // 计算剩余时间
-        const hoursRemaining = calculateRemainingHours(response.data.createdAt);
+        const hoursRemaining = calculateRemainingHours(contentData.createdAt);
         setRemainingHours(hoursRemaining);
         
         // 关闭弹窗
@@ -321,16 +345,14 @@ function App() {
     try {
       const response = await updateContent(content, accessCode)
       if (response.success && response.data) {
-        // 标记内容已保存，但不重置内容本身
-        setIsContentModified(false)
+        // 内容保存成功，但不重置修改状态
+        // setIsContentModified(false) 不再重置状态
         
-        // 更新createdAt以确保剩余时间显示正确
-        if (response.data.createdAt) {
-          setContent(prev => ({
-            ...prev,
-            createdAt: response.data.createdAt
-          }))
-        }
+        // 明确设置新的createdAt时间戳，解决NaN问题
+        setContent(prev => ({
+          ...prev,
+          createdAt: Date.now() // 使用当前时间作为新的createdAt
+        }))
       } else {
         setError(response.error || '保存内容失败')
       }
@@ -385,19 +407,12 @@ function App() {
   // 处理文本内容变化
   const handleTextChange = (html: string) => {
     setContent(prev => {
-      // 保留原始的createdAt值，防止重置时间导致NaN显示
+      // 保留原始的createdAt值
       return { ...prev, text: html };
     });
     
-    // 解决回车键导致内容状态变化的问题
-    const activeElement = document.activeElement;
-    const isEditorFocused = activeElement?.closest('.ProseMirror') !== null;
-    
-    // 只有当编辑器获得焦点时才标记内容已修改
-    // 这避免了全局回车键导致内容状态意外变化
-    if (isEditorFocused) {
-      setIsContentModified(true);
-    }
+    // 只要有任何内容变化就标记为已修改，不再区分是否编辑区域
+    setIsContentModified(true);
   }
 
   // 处理图片上传
@@ -487,7 +502,7 @@ function App() {
               <>
                 <button 
                   onClick={handleUpdateContent} 
-                  disabled={isLoading || !isContentModified}
+                  disabled={isLoading} // 只在加载中时禁用，不再检查是否修改
                   className="action-button"
                 >
                   {isLoading ? '处理中...' : '保存'}

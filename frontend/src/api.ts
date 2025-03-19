@@ -231,15 +231,21 @@ export const updateContent = async (
   try {
     console.log('准备更新内容，访问码:', accessCode.slice(0, 2) + '**')
     
+    // 强制更新创建时间为当前时间，解决NaN问题
+    const updatedContent = {
+      ...content,
+      createdAt: Date.now()
+    }
+    
     // 使用访问码加密内容
-    const encryptedData = encryptContent(content, accessCode)
+    const encryptedData = encryptContent(updatedContent, accessCode)
     
     const response = await fetch(`${API_BASE_URL}/content/${accessCode}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({
         encryptedData,
-        createdAt: content.createdAt
+        createdAt: updatedContent.createdAt // 使用更新后的创建时间
       })
     })
     
@@ -252,12 +258,12 @@ export const updateContent = async (
     }
     
     if (data.success) {
-      console.log('内容更新成功')
+      console.log('内容更新成功，新的createdAt:', new Date(updatedContent.createdAt).toLocaleString())
       return {
         success: true,
         data: { 
           accessCode,
-          createdAt: content.createdAt // 返回createdAt时间
+          createdAt: updatedContent.createdAt // 返回新的创建时间
         }
       }
     } else {
