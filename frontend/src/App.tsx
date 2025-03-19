@@ -195,6 +195,32 @@ function App() {
     }
   };
 
+  // 处理获取内容
+  const handleFetchContent = async () => {
+    if (inputAccessCode.length !== 4 || isLoading) return
+    
+    setIsLoading(true)
+    setError('')
+    
+    try {
+      const response = await getContent(inputAccessCode)
+      if (response.success && response.data) {
+        setContent(response.data)
+        setAccessCode(inputAccessCode)
+        setIsContentLoaded(true)
+        setIsContentModified(false)
+      } else {
+        setError(response.error || '获取内容失败')
+      }
+    } catch (err) {
+      // 使用更友好的错误消息
+      setError('无法获取内容，请检查访问码是否正确')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // 修改为在弹窗中提取内容
   const handleFetchContentFromPopup = async () => {
     if (inputAccessCode.length !== 4 || isLoading) return;
@@ -209,6 +235,7 @@ function App() {
         setContent(response.data);
         setAccessCode(inputAccessCode);
         setIsContentLoaded(true);
+        setIsContentModified(false);
         
         // 计算剩余时间
         const hoursRemaining = calculateRemainingHours(response.data.createdAt);
@@ -267,32 +294,6 @@ function App() {
           // 3秒后清除通知
           setTimeout(() => setNotificationMessage(''), 3000)
         })
-    }
-  }
-
-  // 处理获取内容
-  const handleFetchContent = async () => {
-    if (inputAccessCode.length !== 4 || isLoading) return
-    
-    setIsLoading(true)
-    setError('')
-    
-    try {
-      const response = await getContent(inputAccessCode)
-      if (response.success && response.data) {
-        setContent(response.data)
-        setAccessCode(inputAccessCode)
-        setIsContentLoaded(true)
-        setIsContentModified(false)
-      } else {
-        setError(response.error || '获取内容失败')
-      }
-    } catch (err) {
-      // 使用更友好的错误消息
-      setError('无法获取内容，请检查访问码是否正确')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
     }
   }
 
