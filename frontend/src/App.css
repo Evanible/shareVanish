@@ -178,6 +178,12 @@ header {
   background-color: #5a6268;
 }
 
+/* 保存按钮固定宽度样式 */
+.save-button {
+  min-width: 80px;
+  width: auto;
+}
+
 /* 标题 */
 .title {
   font-size: 32px;

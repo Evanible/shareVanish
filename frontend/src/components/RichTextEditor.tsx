@@ -33,6 +33,8 @@ const RichTextEditor = ({
   const [shouldShowScroll, setShouldShowScroll] = useState(false)
   // 引用编辑器容器元素
   const editorContentRef = useRef<HTMLDivElement>(null)
+  // 用于防止重复更新
+  const lastHTMLRef = useRef<string>('')
   
   const editor = useEditor({
     extensions: [
@@ -49,7 +51,17 @@ const RichTextEditor = ({
     onUpdate: ({ editor }) => {
       if (!isReadOnly) {
         const html = editor.getHTML()
-        onChange(html)
+        console.log('编辑器内容更新，HTML长度:', html.length)
+        console.log('编辑器isFocused状态:', editor.isFocused)
+        
+        // 检查内容是否真的发生变化
+        if (html !== lastHTMLRef.current) {
+          console.log('内容确实变化，触发onChange')
+          lastHTMLRef.current = html
+          onChange(html)
+        } else {
+          console.log('内容无变化，忽略onChange调用')
+        }
         
         // 内容变化时检查是否需要显示滚动条
         checkContentHeight()
@@ -99,14 +111,17 @@ const RichTextEditor = ({
     if (editor && initialValue !== editor.getHTML()) {
       // 严格条件：只有当编辑器为空时才自动更新内容
       if (editor.isEmpty) {
-        console.log('编辑器内容更新:', initialValue ? '有内容' : '空内容')
-        editor.commands.setContent(initialValue)
+        console.log('编辑器内容更新:', initialValue ? '有内容' : '空内容');
+        
+        // 确保更新不会触发太多次onChange
+        lastHTMLRef.current = initialValue;
+        editor.commands.setContent(initialValue);
         
         // 内容变化时检查高度
-        setTimeout(checkContentHeight, 50)
+        setTimeout(checkContentHeight, 50);
       }
     }
-  }, [initialValue, editor, checkContentHeight])
+  }, [initialValue, editor, checkContentHeight]);
 
   // 初始化图片从content.images同步到编辑器
   useEffect(() => {

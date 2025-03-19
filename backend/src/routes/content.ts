@@ -104,7 +104,7 @@ router.get('/:accessCode', async (req, res) => {
 router.put('/:accessCode', async (req, res) => {
   try {
     const { accessCode } = req.params
-    const { encryptedData } = req.body
+    const { encryptedData, createdAt } = req.body
     
     console.log('收到更新内容请求，访问码:', accessCode)
     
@@ -127,18 +127,24 @@ router.put('/:accessCode', async (req, res) => {
       })
     }
     
-    // 更新内容
+    // 更新内容和创建时间
     content.encryptedData = encryptedData
+    
+    // 如果提供了新的创建时间，则更新它
+    if (createdAt) {
+      content.createdAt = new Date(createdAt)
+    }
     
     // 保存到数据库
     await content.save()
     
-    console.log('内容更新成功，访问码:', accessCode)
+    console.log('内容更新成功，访问码:', accessCode, '，创建时间:', content.createdAt)
     
     res.json({
       success: true,
       data: {
-        accessCode
+        accessCode,
+        createdAt: content.createdAt.getTime()
       }
     })
   } catch (error) {

@@ -86,12 +86,15 @@ export const decryptContent = (encryptedData: string, accessCode: string): Conte
       throw new Error('解密数据格式错误')
     }
     
-    // 确保返回的数据包含所有必要的字段
-    return {
+    // 确保返回全新的对象，不受任何现有状态影响
+    const freshContent: Content = {
       text: typeof decryptedData.text === 'string' ? decryptedData.text : '',
-      images: Array.isArray(decryptedData.images) ? decryptedData.images : [],
+      images: Array.isArray(decryptedData.images) ? [...decryptedData.images] : [],
       createdAt: Date.now() // 使用当前时间，因为解密后无法获取原始创建时间
     }
+    
+    console.log('创建了全新的内容对象，文本长度:', freshContent.text.length)
+    return freshContent
   } catch (error) {
     console.error('解密内容错误:', error)
     // 解密失败时抛出错误，让调用方处理错误
@@ -171,8 +174,13 @@ export const createContent = async (content: Content): Promise<ApiResponse<{ acc
 export const getContent = async (accessCode: string): Promise<ApiResponse<Content>> => {
   try {
     console.log('发送获取内容请求，访问码:', accessCode)
-    const response = await fetch(`${API_BASE_URL}/content/${accessCode}`, {
-      headers
+    
+    // 添加随机数作为缓存破坏参数，确保获取最新数据
+    const cacheBreaker = `_cache=${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const response = await fetch(`${API_BASE_URL}/content/${accessCode}?${cacheBreaker}`, {
+      headers,
+      // 禁用缓存
+      cache: 'no-store'
     })
     
     // 打印响应状态用于调试
@@ -193,10 +201,12 @@ export const getContent = async (accessCode: string): Promise<ApiResponse<Conten
         const createdAt = data.data.createdAt || Date.now()
         console.log('内容解密成功，创建时间:', new Date(createdAt).toLocaleString())
         
+        // 创建全新的对象，确保不会引用旧数据
         return {
           success: true,
           data: {
-            ...decryptedContent,
+            text: decryptedContent.text,
+            images: [...decryptedContent.images],
             createdAt // 使用服务器返回的创建时间
           }
         }
@@ -231,10 +241,13 @@ export const updateContent = async (
   try {
     console.log('准备更新内容，访问码:', accessCode.slice(0, 2) + '**')
     
-    // 强制更新创建时间为当前时间，解决NaN问题
+    // 强制设置更新时间为当前时间，解决NaN问题
+    const currentTime = Date.now();
+    console.log('保存内容使用时间戳:', currentTime, new Date(currentTime).toLocaleString());
+    
     const updatedContent = {
       ...content,
-      createdAt: Date.now()
+      createdAt: currentTime // 强制使用当前时间
     }
     
     // 使用访问码加密内容
@@ -245,7 +258,7 @@ export const updateContent = async (
       headers,
       body: JSON.stringify({
         encryptedData,
-        createdAt: updatedContent.createdAt // 使用更新后的创建时间
+        createdAt: currentTime // 明确使用最新时间戳
       })
     })
     
@@ -258,12 +271,12 @@ export const updateContent = async (
     }
     
     if (data.success) {
-      console.log('内容更新成功，新的createdAt:', new Date(updatedContent.createdAt).toLocaleString())
+      console.log('内容更新成功，新的createdAt:', new Date(currentTime).toLocaleString())
       return {
         success: true,
         data: { 
           accessCode,
-          createdAt: updatedContent.createdAt // 返回新的创建时间
+          createdAt: currentTime // 返回新的创建时间
         }
       }
     } else {

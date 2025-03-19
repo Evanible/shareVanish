@@ -21,6 +21,8 @@ function App() {
   const [isContentLoaded, setIsContentLoaded] = useState(false)
   const [remainingHours, setRemainingHours] = useState<number | null>(null)
   const [isContentModified, setIsContentModified] = useState(false)
+  // 添加编辑器key状态，用于强制重新渲染编辑器
+  const [editorKey, setEditorKey] = useState(`editor-${Date.now()}`)
   // 添加4个独立的输入框状态
   const [codeInputs, setCodeInputs] = useState(['', '', '', ''])
   // 添加弹窗状态
@@ -35,8 +37,12 @@ function App() {
   // 添加全局键盘事件以支持Enter键快速提取
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      console.log(`键盘事件触发: ${e.key}, 按键代码: ${e.code}`);
+      console.log(`焦点元素: ${document.activeElement?.tagName}, 类名: ${document.activeElement?.className}`);
+      
       // 按ESC键关闭弹窗
       if (e.key === 'Escape' && showPopup) {
+        console.log('ESC键按下，关闭弹窗');
         setShowPopup(false);
         setPopupError('');
         setCodeInputs(['', '', '', '']);
@@ -45,6 +51,7 @@ function App() {
       // 保留原有的Enter键功能，但仅在访问码输入框有焦点时触发
       if (e.key === 'Enter' && inputAccessCode.length === 4 && !isLoading && isCodeInputFocused) {
         // 防止事件冒泡导致编辑器中回车问题
+        console.log('访问码输入框中按下回车，执行提取内容');
         e.preventDefault();
         handleFetchContent();
       }
@@ -55,9 +62,14 @@ function App() {
         const activeElement = document.activeElement;
         const isEditorFocused = activeElement?.closest('.ProseMirror') !== null;
         
+        console.log(`回车键处理: 编辑器焦点=${isEditorFocused}, 访问码输入焦点=${isCodeInputFocused}`);
+        
         // 如果焦点不在编辑器内或访问码输入框内，阻止默认行为
         if (!isEditorFocused && !isCodeInputFocused) {
+          console.log('阻止回车键默认行为');
           e.preventDefault();
+        } else {
+          console.log('允许回车键默认行为');
         }
       }
     };
@@ -102,8 +114,14 @@ function App() {
         
         // 验证createdAt是否为有效数字
         if (isNaN(createdAtTime)) {
-          console.error('无效的createdAt时间戳:', content.createdAt)
+          console.error('无效的createdAt时间戳，使用当前时间:', content.createdAt)
           createdAtTime = Date.now() // 如果无效，使用当前时间
+          
+          // 更新content以修复无效时间戳
+          setContent(prev => ({
+            ...prev,
+            createdAt: createdAtTime
+          }))
         }
         
         const expiryTime = createdAtTime + (24 * 60 * 60 * 1000) // 24小时后过期
@@ -228,10 +246,20 @@ function App() {
       const response = await getContent(inputAccessCode)
       if (response.success && response.data) {
         // 确保createdAt是有效的时间戳
+        let createdAt = response.data.createdAt || Date.now();
+        
+        // 验证并修复时间戳
+        if (isNaN(createdAt)) {
+          console.error('从API收到无效的createdAt，使用当前时间代替');
+          createdAt = Date.now();
+        }
+        
         const contentData = {
           ...response.data,
-          createdAt: response.data.createdAt || Date.now()  // 确保有有效的createdAt
+          createdAt: createdAt
         };
+        
+        console.log('获取内容成功，createdAt:', new Date(createdAt).toLocaleString());
         
         setContent(contentData)
         setAccessCode(inputAccessCode)
@@ -264,23 +292,47 @@ function App() {
       const response = await getContent(inputAccessCode);
       if (response.success && response.data) {
         // 成功获取内容，确保createdAt是有效的时间戳
+        let createdAt = response.data.createdAt || Date.now();
+        
+        // 验证并修复时间戳
+        if (isNaN(createdAt)) {
+          console.error('从API收到无效的createdAt，使用当前时间代替');
+          createdAt = Date.now();
+        }
+        
         const contentData = {
           ...response.data,
-          createdAt: response.data.createdAt || Date.now()  // 确保有有效的createdAt
+          createdAt: createdAt
         };
         
-        // 设置内容
-        setContent(contentData);
-        setAccessCode(inputAccessCode);
-        setIsContentLoaded(true);
-        setIsContentModified(false);
+        console.log('获取内容成功，createdAt:', new Date(createdAt).toLocaleString());
         
-        // 计算剩余时间
-        const hoursRemaining = calculateRemainingHours(contentData.createdAt);
-        setRemainingHours(hoursRemaining);
+        // 更新编辑器key，强制重新渲染编辑器
+        setEditorKey(`editor-fetch-${inputAccessCode}-${Date.now()}`);
         
-        // 关闭弹窗
-        setShowPopup(false);
+        // 重置编辑器内容为空，然后设置新内容，确保完全刷新
+        setContent({
+          text: '',
+          images: [],
+          createdAt: Date.now()
+        });
+        
+        // 短暂延迟后再设置新内容，确保编辑器已重置
+        setTimeout(() => {
+          // 设置内容
+          setContent(contentData);
+          setAccessCode(inputAccessCode);
+          setIsContentLoaded(true);
+          setIsContentModified(false);
+          
+          // 计算剩余时间
+          const hoursRemaining = calculateRemainingHours(contentData.createdAt);
+          setRemainingHours(hoursRemaining);
+          
+          // 关闭弹窗
+          setShowPopup(false);
+        }, 50);
+        
       } else {
         // 获取失败，显示错误
         setPopupError(response.error || '访问码不正确或内容已过期');
@@ -295,6 +347,24 @@ function App() {
 
   // 打开弹窗
   const handleOpenPopup = () => {
+    // 如果有未保存的内容，先提示用户
+    if (isContentLoaded && isContentModified) {
+      const confirmResult = window.confirm("您有未保存的内容，继续操作可能导致内容丢失。是否继续？");
+      if (!confirmResult) {
+        return; // 用户取消操作
+      }
+      
+      // 更新编辑器key，强制重新渲染编辑器
+      setEditorKey(`editor-popup-${Date.now()}`);
+      
+      // 用户确认，先重置内容确保不会看到旧内容
+      setContent({
+        text: '',
+        images: [],
+        createdAt: Date.now()
+      });
+    }
+    
     setShowPopup(true);
     setCodeInputs(['', '', '', '']);
     setInputAccessCode('');
@@ -335,85 +405,73 @@ function App() {
     }
   }
 
-  // 处理内容更新
-  const handleUpdateContent = async () => {
-    if (!accessCode || isLoading) return
-    
-    setIsLoading(true)
-    setError('')
-    
-    try {
-      const response = await updateContent(content, accessCode)
-      if (response.success && response.data) {
-        // 内容保存成功，但不重置修改状态
-        // setIsContentModified(false) 不再重置状态
-        
-        // 明确设置新的createdAt时间戳，解决NaN问题
-        setContent(prev => ({
-          ...prev,
-          createdAt: Date.now() // 使用当前时间作为新的createdAt
-        }))
-      } else {
-        setError(response.error || '保存内容失败')
-      }
-    } catch (err) {
-      setError('保存内容时发生错误')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // 处理内容创建
-  const handleCreateContent = async () => {
-    if (isLoading) return
-    
-    setIsLoading(true)
-    setError('')
-    
-    try {
-      const response = await createContent(content)
-      if (response.success && response.data) {
-        const newAccessCode = response.data.accessCode
-        
-        // 自动复制访问码到剪贴板
-        if (navigator.clipboard) {
-          try {
-            await navigator.clipboard.writeText(newAccessCode)
-            setNotificationMessage(`已成功创建并复制访问码 <code class="access-code">${newAccessCode}</code>`)
-          } catch (err) {
-            console.error('复制失败:', err)
-            setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
-          }
-        } else {
-          setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
-        }
-        
-        // 5秒后清除通知
-        setTimeout(() => {
-          setNotificationMessage('')
-        }, 5000)
-      } else {
-        setError(response.error || '创建内容失败')
-      }
-    } catch (err) {
-      setError('创建内容时发生错误')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   // 处理文本内容变化
   const handleTextChange = (html: string) => {
-    setContent(prev => {
-      // 保留原始的createdAt值
-      return { ...prev, text: html };
-    });
+    console.log('handleTextChange被调用,HTML长度:', html.length);
     
-    // 只要有任何内容变化就标记为已修改，不再区分是否编辑区域
-    setIsContentModified(true);
+    // 使用本地变量保存比较结果，提高性能
+    const contentChanged = html !== content.text;
+    console.log('内容是否变化:', contentChanged);
+
+    if (contentChanged) {
+      // 内容确实变化，更新状态
+      setContent(prev => {
+        return { ...prev, text: html };
+      });
+      
+      // 如果当前未标记为已修改，则设置修改标志
+      if (!isContentModified) {
+        console.log('设置isContentModified为true');
+        setIsContentModified(true);
+      }
+    } else {
+      console.log('忽略相同内容的更新');
+    }
   }
+
+  // 解决全局回车键导致的问题
+  useEffect(() => {
+    // 添加防抖功能，避免多次触发
+    let debounceTimer: number | null = null;
+    
+    // 创建一个特定的回车键处理函数，避免重复触发文本更新
+    const handleEnterKeyPress = (e: KeyboardEvent) => {
+      // 如果不是回车键，直接返回
+      if (e.key !== 'Enter') return;
+      
+      // 检查焦点是否在编辑器内
+      const activeElement = document.activeElement;
+      const isEditorFocused = activeElement?.closest('.ProseMirror') !== null;
+      
+      console.log('回车键事件:', {isEditorFocused, target: e.target});
+      
+      // 如果焦点在编辑器内，避免重复触发文本更新
+      if (isEditorFocused) {
+        // 阻止事件冒泡，防止触发保存功能或其他全局处理
+        e.stopPropagation();
+        
+        // 使用防抖处理，避免快速连续的回车键导致多次状态更新
+        if (debounceTimer) {
+          window.clearTimeout(debounceTimer);
+        }
+        
+        debounceTimer = window.setTimeout(() => {
+          console.log('回车键防抖处理完成');
+          debounceTimer = null;
+        }, 100);
+      }
+    };
+    
+    // 添加按键监听，捕获阶段处理
+    document.addEventListener('keydown', handleEnterKeyPress, true);
+    
+    return () => {
+      document.removeEventListener('keydown', handleEnterKeyPress, true);
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+      }
+    };
+  }, []);
 
   // 处理图片上传
   const handleImageUpload = (dataUrl: string) => {
@@ -459,17 +517,122 @@ function App() {
 
   // 处理清除内容
   const handleClear = () => {
+    // 如果有未保存的内容，先提示用户
+    if (isContentModified) {
+      const confirmResult = window.confirm("您有未保存的内容，继续操作可能导致内容丢失。是否继续？");
+      if (!confirmResult) {
+        return; // 用户取消操作
+      }
+    }
+    
+    // 更新编辑器key，强制重新渲染编辑器
+    setEditorKey(`editor-new-${Date.now()}`);
+    
+    // 先清空内容，确保编辑器完全重置
     setContent({
       text: '',
       images: [],
       createdAt: Date.now()
-    })
-    setAccessCode('')
-    setInputAccessCode('')
-    setCodeInputs(['', '', '', ''])
-    setIsContentLoaded(false)
-    setRemainingHours(null)
-    setIsContentModified(false)
+    });
+    
+    // 用定时器确保状态更新，编辑器彻底清空
+    setTimeout(() => {
+      setAccessCode('');
+      setInputAccessCode('');
+      setCodeInputs(['', '', '', '']);
+      setIsContentLoaded(false);
+      setRemainingHours(null);
+      setIsContentModified(false);
+    }, 50);
+  }
+
+  // 处理内容更新
+  const handleUpdateContent = async () => {
+    console.log('=== 保存按钮被点击 ===');
+    
+    if (!accessCode || isLoading) return
+    
+    setIsLoading(true)
+    console.log('设置isLoading为true');
+    setError('')
+    
+    try {
+      console.log('开始调用API保存内容...');
+      const response = await updateContent(content, accessCode)
+      console.log('API返回结果:', response);
+      
+      if (response.success && response.data) {
+        console.log('保存成功，将使用新的createdAt');
+        
+        // 明确设置新的createdAt时间戳，解决NaN问题
+        const newTimestamp = Date.now();
+        console.log('新的时间戳:', newTimestamp);
+        
+        // 更新编辑器key，确保编辑器重新渲染使用最新状态
+        setEditorKey(`editor-saved-${accessCode}-${newTimestamp}`);
+        
+        setContent(prev => ({
+          ...prev,
+          createdAt: newTimestamp // 使用当前时间作为新的createdAt
+        }))
+        
+        // 更新修改状态
+        setIsContentModified(false);
+        
+        // 设置成功消息
+        setNotificationMessage('内容已成功保存')
+        setTimeout(() => setNotificationMessage(''), 3000)
+      } else {
+        setError(response.error || '保存内容失败')
+        console.error('保存失败:', response.error);
+      }
+    } catch (err) {
+      setError('保存内容时发生错误')
+      console.error('保存出错:', err)
+    } finally {
+      setIsLoading(false)
+      console.log('设置isLoading为false');
+    }
+  }
+
+  // 处理内容创建
+  const handleCreateContent = async () => {
+    if (isLoading) return
+    
+    setIsLoading(true)
+    setError('')
+    
+    try {
+      const response = await createContent(content)
+      if (response.success && response.data) {
+        const newAccessCode = response.data.accessCode
+        
+        // 自动复制访问码到剪贴板
+        if (navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(newAccessCode)
+            setNotificationMessage(`已成功创建并复制访问码 <code class="access-code">${newAccessCode}</code>`)
+          } catch (err) {
+            console.error('复制失败:', err)
+            setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
+          }
+        } else {
+          setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
+        }
+        
+        // 5秒后清除通知
+        setTimeout(() => {
+          setNotificationMessage('')
+        }, 5000)
+      } else {
+        setError(response.error || '创建内容失败')
+      }
+    } catch (err) {
+      setError('创建内容时发生错误')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // 渲染
@@ -501,9 +664,14 @@ function App() {
             {isContentLoaded ? (
               <>
                 <button 
-                  onClick={handleUpdateContent} 
-                  disabled={isLoading} // 只在加载中时禁用，不再检查是否修改
-                  className="action-button"
+                  onClick={(e) => {
+                    // 阻止事件冒泡，确保不被其他事件处理干扰
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleUpdateContent();
+                  }} 
+                  disabled={isLoading} // 只在加载时禁用，移除isInitialState判断
+                  className="action-button" // 移除save-button类名
                 >
                   {isLoading ? '处理中...' : '保存'}
                 </button>
@@ -577,14 +745,15 @@ function App() {
         {/* 编辑区域 */}
         <section className="editor-section">
             <RichTextEditor 
+              key={editorKey}
               initialValue={content.text}
-            onChange={handleTextChange}
+              onChange={handleTextChange}
               onImageUpload={handleImageUpload}
               isReadOnly={false}
-            showSaveButton={false}
-            onSave={handleUpdateContent}
+              showSaveButton={false}
+              onSave={handleUpdateContent}
               isModified={isContentModified}
-          />
+            />
         </section>
 
         {/* 图片区域 - 只在有图片或用户开始上传时显示 */}
