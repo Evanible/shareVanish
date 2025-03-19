@@ -320,9 +320,17 @@ function App() {
     
     try {
       const response = await updateContent(content, accessCode)
-      if (response.success) {
-        // 不再显示保存成功提示
+      if (response.success && response.data) {
+        // 标记内容已保存，但不重置内容本身
         setIsContentModified(false)
+        
+        // 更新createdAt以确保剩余时间显示正确
+        if (response.data.createdAt) {
+          setContent(prev => ({
+            ...prev,
+            createdAt: response.data.createdAt
+          }))
+        }
       } else {
         setError(response.error || '保存内容失败')
       }
@@ -376,7 +384,10 @@ function App() {
 
   // 处理文本内容变化
   const handleTextChange = (html: string) => {
-    setContent(prev => ({ ...prev, text: html }))
+    setContent(prev => {
+      // 保留原始的createdAt值，防止重置时间导致NaN显示
+      return { ...prev, text: html };
+    });
     
     // 解决回车键导致内容状态变化的问题
     const activeElement = document.activeElement;

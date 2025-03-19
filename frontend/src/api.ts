@@ -227,7 +227,7 @@ export const getContent = async (accessCode: string): Promise<ApiResponse<Conten
 export const updateContent = async (
   content: Content,
   accessCode: string
-): Promise<ApiResponse<{ accessCode: string }>> => {
+): Promise<ApiResponse<{ accessCode: string, createdAt: number }>> => {
   try {
     console.log('准备更新内容，访问码:', accessCode.slice(0, 2) + '**')
     
@@ -255,7 +255,10 @@ export const updateContent = async (
       console.log('内容更新成功')
       return {
         success: true,
-        data: { accessCode }
+        data: { 
+          accessCode,
+          createdAt: content.createdAt // 返回createdAt时间
+        }
       }
     } else {
       console.error('更新内容失败:', data.error)

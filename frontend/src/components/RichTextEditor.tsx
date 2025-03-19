@@ -97,9 +97,8 @@ const RichTextEditor = ({
   // 当initialValue变化时更新编辑器内容
   useEffect(() => {
     if (editor && initialValue !== editor.getHTML()) {
-      // 只有当编辑器是空的或者是初始化时才更新内容
-      // 防止覆盖用户正在编辑的内容
-      if (editor.isEmpty || !editor.isFocused) {
+      // 严格条件：仅当编辑器为空或者未获得焦点且内容不同时才更新
+      if (editor.isEmpty || (!editor.isFocused && editor.getHTML() !== initialValue)) {
         console.log('编辑器内容更新:', initialValue ? '有内容' : '空内容')
         editor.commands.setContent(initialValue)
         
