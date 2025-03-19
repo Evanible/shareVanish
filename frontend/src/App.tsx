@@ -377,7 +377,16 @@ function App() {
   // 处理文本内容变化
   const handleTextChange = (html: string) => {
     setContent(prev => ({ ...prev, text: html }))
-    setIsContentModified(true)
+    
+    // 解决回车键导致内容状态变化的问题
+    const activeElement = document.activeElement;
+    const isEditorFocused = activeElement?.closest('.ProseMirror') !== null;
+    
+    // 只有当编辑器获得焦点时才标记内容已修改
+    // 这避免了全局回车键导致内容状态意外变化
+    if (isEditorFocused) {
+      setIsContentModified(true);
+    }
   }
 
   // 处理图片上传
