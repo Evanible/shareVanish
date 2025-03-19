@@ -395,35 +395,62 @@ function App() {
     <div className="app-container">
       {/* 页头 */}
       <header>
-        <div className="action-container">
-          <button 
-            onClick={isContentLoaded ? handleUpdateContent : handleCreateContent} 
-            disabled={isLoading || (isContentLoaded && !isContentModified)}
-            className="action-button"
-          >
-            {isLoading ? '处理中...' : isContentLoaded ? '保存内容' : '创建访问码'}
-          </button>
+        <div className="header-container">
+          {/* 左侧状态区域 */}
+          <div className="status-container">
+            {isContentLoaded ? (
+              <div className="status-text">
+                正在查看 <code className="access-code">{accessCode}</code>
+                {remainingHours !== null && (
+                  <span className="timer-info">
+                    （将在 <span className="timer">{remainingHours}</span> 小时后过期）
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="status-text">新建内容</div>
+            )}
+          </div>
           
-          {/* 添加提取已有内容按钮 */}
-          <button 
-            onClick={handleOpenPopup}
-            className="action-button extract-button"
-          >
-            提取已有内容
-          </button>
+          {/* 右侧按钮区域 */}
+          <div className="action-container">
+            {isContentLoaded && (
+              <>
+                <button 
+                  onClick={handleUpdateContent} 
+                  disabled={isLoading || !isContentModified}
+                  className="action-button"
+                >
+                  {isLoading ? '处理中...' : '保存'}
+                </button>
+                
+                <button 
+                  onClick={handleClear}
+                  className="action-button"
+                >
+                  创建新文档
+                </button>
+              </>
+            )}
             
-          {isContentLoaded && remainingHours !== null && (
-            <div className="timer-container">
-              内容将在 <span className="timer">{remainingHours}</span> 小时后过期
-            </div>
-          )}
+            {!isContentLoaded && (
+              <button 
+                onClick={handleCreateContent} 
+                disabled={isLoading}
+                className="action-button"
+              >
+                {isLoading ? '处理中...' : '创建访问码'}
+              </button>
+            )}
             
-          {accessCode && (
-            <div className="access-code-display">
-              <span>访问码: </span>
-              <strong>{accessCode}</strong>
-            </div>
-          )}
+            {/* 提取已有内容按钮始终显示 */}
+            <button 
+              onClick={handleOpenPopup}
+              className="action-button extract-button"
+            >
+              提取已有内容
+            </button>
+          </div>
         </div>
       </header>
 
