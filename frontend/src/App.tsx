@@ -335,34 +335,24 @@ function App() {
       const response = await createContent(content)
       if (response.success && response.data) {
         const newAccessCode = response.data.accessCode
-        setAccessCode(newAccessCode)
-        
-        // 更新4个独立输入框
-        const codeArray = newAccessCode.split('')
-        setCodeInputs(codeArray.concat(''.repeat(4 - codeArray.length).split('')))
-        
-        setInputAccessCode(newAccessCode)
         
         // 自动复制访问码到剪贴板
         if (navigator.clipboard) {
           try {
             await navigator.clipboard.writeText(newAccessCode)
-            setNotificationMessage(`已创建新内容，访问码已复制到剪贴板：${newAccessCode}`)
+            setNotificationMessage(`已成功创建并复制访问码 <code class="access-code">${newAccessCode}</code>`)
           } catch (err) {
             console.error('复制失败:', err)
-            setNotificationMessage(`已创建新内容，访问码：${newAccessCode}`)
+            setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
           }
         } else {
-          setNotificationMessage(`已创建新内容，访问码：${newAccessCode}`)
+          setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
         }
         
-        setIsContentLoaded(true)
-        setIsContentModified(false)
-        
-        // 3秒后清除通知
+        // 5秒后清除通知
         setTimeout(() => {
           setNotificationMessage('')
-        }, 3000)
+        }, 5000)
       } else {
         setError(response.error || '创建内容失败')
       }
@@ -588,8 +578,7 @@ function App() {
 
       {/* 通知区域 */}
       {notificationMessage && (
-        <div className="notification">
-          {notificationMessage}
+        <div className="notification" dangerouslySetInnerHTML={{ __html: notificationMessage }}>
         </div>
       )}
 
