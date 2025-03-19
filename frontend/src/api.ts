@@ -4,7 +4,17 @@ import CryptoJS from 'crypto-js'
 // 注意：在生产环境中应使用相对路径或环境变量
 const API_BASE_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000/api'
-  : `http://192.168.31.99:3000/api`
+  : (
+    // 本机局域网IP
+    window.location.hostname === '192.168.31.99' 
+    ? 'http://192.168.31.99:3000/api'
+    : window.location.port.startsWith('517') 
+    ? 'http://localhost:3000/api' // 处理Vite开发服务器不同端口情况
+    : `http://${window.location.hostname}:3000/api`
+  )
+
+// 检查API基础URL
+console.log('使用API基础URL:', API_BASE_URL)
 
 export interface Content {
   text: string
