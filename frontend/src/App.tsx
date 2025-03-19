@@ -42,8 +42,10 @@ function App() {
         setCodeInputs(['', '', '', '']);
       }
       
-      // 保留原有的Enter键功能
+      // 保留原有的Enter键功能，但仅在访问码输入框有焦点时触发
       if (e.key === 'Enter' && inputAccessCode.length === 4 && !isLoading && isCodeInputFocused) {
+        // 防止事件冒泡导致编辑器中回车问题
+        e.preventDefault();
         handleFetchContent();
       }
     };
