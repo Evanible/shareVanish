@@ -492,9 +492,17 @@ function App() {
     
     // 检查图片数量限制，但不显示错误消息，只返回false
     if (content.images.length >= MAX_IMAGES) {
-      console.log(`图片数量已达上限 (${MAX_IMAGES})`);
-      // 不再显示即时错误，只在内部记录
-      return false;
+      console.log(`图片数量已达上限 (${MAX_IMAGES})，但允许临时上传`);
+      // 即使超过限制也返回true，允许图片上传到编辑器
+      // 最终保存时再处理超过限制的部分
+    }
+    
+    // 检查图片大小但不阻止上传
+    const base64Length = dataUrl.substring(dataUrl.indexOf(',') + 1).length;
+    const sizeInMB = (base64Length * 0.75) / (1024 * 1024);
+    if (sizeInMB > MAX_IMAGE_SIZE_MB) {
+      console.log(`图片大小超过限制: ${sizeInMB.toFixed(2)}MB > ${MAX_IMAGE_SIZE_MB}MB，但允许临时上传`);
+      // 不阻止上传，最终保存时再处理
     }
     
     console.log(`添加新图片，新总数: ${content.images.length + 1}`);

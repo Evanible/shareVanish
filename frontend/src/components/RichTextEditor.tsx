@@ -284,37 +284,72 @@ const RichTextEditor = ({
     console.log(`尝试使用新方法插入 ${imageUrls.length} 张图片`)
     
     try {
-      // 获取当前选择并聚焦编辑器
-      editor.chain().focus()
+      // 确保编辑器获得焦点
+      editor.commands.focus();
       
-      // 改进：单独处理每张图片的插入，确保每张都能成功显示
-      imageUrls.forEach((url, index) => {
-        console.log(`正在插入第 ${index + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`)
+      // 全新方法：逐个分离地插入每一张图片
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        console.log(`插入第 ${i + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`);
         
-        // 单独为每张图片创建一个新的命令链，避免一次性插入多张导致的问题
-        editor.chain()
-          .focus()
-          .insertContent(`<img src="${url}" />`)
-          .run()
+        // 创建临时HTML元素存放图片
+        const imgElement = document.createElement('img');
+        imgElement.src = url;
         
-        // 在每张图片后添加段落，使得图片能够分开显示
-        editor.chain()
-          .insertContent('<p></p>')
-          .run()
-      })
+        // 直接设置HTML内容，强制插入图片
+        editor.commands.insertContent({
+          type: 'image',
+          attrs: { src: url }
+        });
+        
+        // 插入换行以分隔图片
+        editor.commands.insertContent({
+          type: 'paragraph'
+        });
+      }
       
-      console.log('完成多张图片插入')
+      console.log('完成多张图片插入，使用新方法');
       
       // 验证插入后的内容
       setTimeout(() => {
-        const images = extractImagesFromEditor(editor)
-        console.log(`验证：插入后编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`)
+        const images = extractImagesFromEditor(editor);
+        console.log(`验证：插入后编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`);
+        
         if (images.length !== imageUrls.length) {
-          console.warn('警告：插入的图片数量与期望不符')
+          console.warn(`警告：插入的图片数量(${images.length})与期望数量(${imageUrls.length})不符`);
+          
+          // 如果图片数量不匹配，尝试再次插入
+          if (images.length === 0 && imageUrls.length > 0) {
+            console.log('尝试使用备用方法插入图片');
+            
+            // 备用方法：使用更直接的HTML插入方式
+            let html = '';
+            imageUrls.forEach(url => {
+              html += `<img src="${url}" /><p></p>`;
+            });
+            
+            editor.commands.insertContent(html);
+            
+            // 再次验证
+            setTimeout(() => {
+              const finalImages = extractImagesFromEditor(editor);
+              console.log(`最终图片数量: ${finalImages.length}`);
+            }, 300);
+          }
         }
-      }, 200)
+      }, 300)
     } catch (error) {
-      console.error('插入多张图片失败:', error)
+      console.error('插入多张图片失败:', error);
+      
+      // 出错后尝试使用最简单的方法
+      try {
+        console.log('尝试使用简单方法插入图片');
+        imageUrls.forEach(url => {
+          editor.commands.insertContent(`<img src="${url}" /><p></p>`);
+        });
+      } catch (fallbackError) {
+        console.error('备用方法也失败:', fallbackError);
+      }
     }
   }, [editor, extractImagesFromEditor])
 
