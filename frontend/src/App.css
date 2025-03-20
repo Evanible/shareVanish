@@ -342,26 +342,6 @@ footer p {
   min-height: 300px;
 }
 
-/* 图片上传区域 */
-.dropzone, .upload-section {
-  margin-top: 0;
-  padding: 16px;
-  border: 2px dashed #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
-  transition: border-color 0.2s;
-}
-
-.dropzone:hover, .upload-section:hover {
-  border-color: #4a7bfc;
-}
-
-.dropzone-active {
-  border-color: #28a745;
-  background-color: rgba(40, 167, 69, 0.1);
-}
-
 /* 预览图片容器 */
 .preview-container, .preview-section {
   margin-top: 16px;
@@ -450,29 +430,6 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-/* 上传区域改进 */
-.upload-section {
-  border: 2px dashed #ccc;
-  padding: 20px;
-  border-radius: 4px;
-  text-align: center;
-  cursor: pointer;
-  margin-bottom: 15px;
-  background-color: #f8f9fa;
-  transition: all 0.3s ease;
-}
-
-.upload-section:hover {
-  border-color: #1976d2;
-  background-color: #e3f2fd;
-}
-
-.upload-section p {
-  margin: 0;
-  font-size: 14px;
-  color: #5f6368;
 }
 
 /* 预览区域改进 */

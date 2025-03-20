@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useDropzone } from 'react-dropzone'
 import { createContent, getContent, type Content, updateContent, type ApiResponse } from './api'
 import './App.css'
 import RichTextEditor from './components/RichTextEditor'
@@ -212,7 +211,7 @@ function App() {
           }
           
           return;
-        } else {
+            } else {
           value = value.charAt(0); // 如果不是在第一个框，只保留第一个字符
         }
       }
@@ -318,9 +317,9 @@ function App() {
         
         // 重置编辑器内容为空，然后设置新内容，确保完全刷新
         setContent({
-          text: '',
-          images: [],
-          createdAt: Date.now()
+      text: '',
+      images: [],
+      createdAt: Date.now()
         });
         
         // 短暂延迟后再设置新内容，确保编辑器已重置
@@ -599,24 +598,6 @@ function App() {
     }
   }, [content.images]);
 
-  // 文件拖放处理
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      'image/*': []
-    },
-    onDrop: acceptedFiles => {
-      // 处理接受的文件
-      acceptedFiles.forEach(file => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const dataUrl = reader.result as string
-          handleImageUpload(dataUrl)
-        }
-        reader.readAsDataURL(file)
-      })
-    }
-  })
-
   // 处理清除内容
   const handleClear = () => {
     // 如果有未保存的内容，先提示用户
@@ -829,13 +810,13 @@ function App() {
             ) : (
               <div className="status-text"></div>
             )}
-          </div>
+            </div>
           
           {/* 右侧按钮区域 */}
           <div className="action-container">
-            {isContentLoaded ? (
+              {isContentLoaded ? (
               <>
-                <button 
+                <button
                   onClick={(e) => {
                     // 阻止事件冒泡，确保不被其他事件处理干扰
                     e.preventDefault();
@@ -848,7 +829,7 @@ function App() {
                   {isLoading ? '处理中...' : '保存'}
                 </button>
                 
-                <button 
+                <button
                   onClick={handleClear}
                   className="action-button"
                 >
@@ -856,7 +837,7 @@ function App() {
                 </button>
               </>
             ) : (
-              <button 
+              <button
                 onClick={handleCreateContent} 
                 disabled={isLoading}
                 className="action-button"
@@ -897,7 +878,7 @@ function App() {
                   disabled={isLoading}
                 />
               ))}
-            </div>
+              </div>
             
             {isLoading && <div className="loading-indicator">加载中...</div>}
             
@@ -907,7 +888,7 @@ function App() {
             
             <div className="popup-hint">
               输入完成后将自动提取内容，或按ESC键取消
-            </div>
+              </div>
           </div>
         </div>
       )}
@@ -936,20 +917,10 @@ function App() {
           </div>
         )}
 
-        {/* 图片区域 - 只在有图片或用户开始上传时显示 */}
-        {/* 图片上传区 */}
-        <div className="upload-section-container">
-          <div {...getRootProps()} className="upload-section">
-            <input {...getInputProps()} />
-            {isDragActive ? (
-              <p>拖放图片到这里</p>
-            ) : (
-              <p>点击或拖放图片到这里上传 (最多{MAX_IMAGES}张，每张不超过{MAX_IMAGE_SIZE_MB}MB)</p>
-            )}
-          </div>
-
-          {/* 图片预览区 - 只在有图片时显示 */}
-          {content.images.length > 0 && (
+        {/* 移除图片拖拽区 */}
+        {/* 图片预览区 - 只在有图片时显示 */}
+        {content.images.length > 0 && (
+          <div className="upload-section-container">
             <div className="preview-section">
               <div className="preview-stats">
                 已上传 {content.images.length}/{MAX_IMAGES} 张图片
@@ -968,8 +939,8 @@ function App() {
                 ))}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
       {/* 页脚 */}
