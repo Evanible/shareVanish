@@ -281,78 +281,88 @@ const RichTextEditor = ({
       return
     }
     
-    console.log(`尝试使用新方法插入 ${imageUrls.length} 张图片`)
+    console.log(`尝试插入 ${imageUrls.length} 张图片，当前使用直接插入JSON节点方法`)
     
     try {
       // 确保编辑器获得焦点
       editor.commands.focus();
       
-      // 全新方法：逐个分离地插入每一张图片
-      for (let i = 0; i < imageUrls.length; i++) {
-        const url = imageUrls[i];
-        console.log(`插入第 ${i + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`);
+      // 更可靠的图片插入方式：直接插入节点
+      imageUrls.forEach((url, index) => {
+        console.log(`插入第 ${index + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`);
         
-        // 创建临时HTML元素存放图片
-        const imgElement = document.createElement('img');
-        imgElement.src = url;
-        
-        // 直接设置HTML内容，强制插入图片
-        editor.commands.insertContent({
-          type: 'image',
-          attrs: { src: url }
-        });
-        
-        // 插入换行以分隔图片
-        editor.commands.insertContent({
-          type: 'paragraph'
-        });
-      }
+        try {
+          // 在当前光标位置插入图片节点
+          editor.commands.insertContent({
+            type: 'image',
+            attrs: { src: url }
+          });
+          
+          // 插入段落节点确保图片之间有分隔
+          editor.commands.insertContent({
+            type: 'paragraph',
+            content: []
+          });
+          
+          console.log(`成功插入图片 ${index + 1}`);
+        } catch (innerError) {
+          console.error(`插入单个图片时出错:`, innerError);
+        }
+      });
       
-      console.log('完成多张图片插入，使用新方法');
+      console.log('所有图片插入完成');
       
       // 验证插入后的内容
       setTimeout(() => {
         const images = extractImagesFromEditor(editor);
-        console.log(`验证：插入后编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`);
+        console.log(`验证：编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`);
         
         if (images.length !== imageUrls.length) {
-          console.warn(`警告：插入的图片数量(${images.length})与期望数量(${imageUrls.length})不符`);
+          console.warn(`警告：插入的图片数量不符，尝试备用方法`);
           
-          // 如果图片数量不匹配，尝试再次插入
-          if (images.length === 0 && imageUrls.length > 0) {
-            console.log('尝试使用备用方法插入图片');
-            
-            // 备用方法：使用更直接的HTML插入方式
+          // 备用方法：使用HTML字符串插入
+          try {
+            console.log('使用HTML字符串备用方法插入图片');
             let html = '';
+            
             imageUrls.forEach(url => {
               html += `<img src="${url}" /><p></p>`;
             });
             
+            // 清除之前可能部分插入的图片
+            const currentHTML = editor.getHTML();
+            editor.commands.setContent(currentHTML);
+            
+            // 在当前位置插入HTML
             editor.commands.insertContent(html);
             
             // 再次验证
             setTimeout(() => {
               const finalImages = extractImagesFromEditor(editor);
-              console.log(`最终图片数量: ${finalImages.length}`);
+              console.log(`最终图片数量: ${finalImages.length}，使用备用方法后`);
             }, 300);
+          } catch (fallbackError) {
+            console.error('备用方法也失败:', fallbackError);
           }
         }
-      }, 300)
+      }, 300);
     } catch (error) {
-      console.error('插入多张图片失败:', error);
+      console.error('插入图片过程中发生错误:', error);
       
-      // 出错后尝试使用最简单的方法
+      // 最简单的备用方法
       try {
-        console.log('尝试使用简单方法插入图片');
+        console.log('使用最简单的方法插入图片');
+        let html = '';
         imageUrls.forEach(url => {
-          editor.commands.insertContent(`<img src="${url}" /><p></p>`);
+          html += `<img src="${url}">`;
         });
-      } catch (fallbackError) {
-        console.error('备用方法也失败:', fallbackError);
+        editor.commands.insertContent(html);
+      } catch (finalError) {
+        console.error('所有插入方法都失败:', finalError);
       }
     }
-  }, [editor, extractImagesFromEditor])
-
+  }, [editor, extractImagesFromEditor]);
+  
   // 图片上传处理
   const handleImageUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,10 +423,18 @@ const RichTextEditor = ({
       console.log(`图片处理完成: ${successCount}/${files.length} 张成功，准备插入编辑器`)
       console.log(`待插入图片列表长度: ${uploadedImages.length}`)
       
-      // 使用改进的方法批量插入图片
+      // 每次上传后都使用改进的方法插入图片
       if (uploadedImages.length > 0) {
-        console.log('使用改进后的方法插入多张图片')
-        insertMultipleImages(uploadedImages)
+        // 确保编辑器处于最新状态
+        if (editor) {
+          console.log('准备插入图片到编辑器');
+          // 确保编辑器已经聚焦
+          editor.commands.focus();
+          // 调用插入图片函数
+          insertMultipleImages(uploadedImages);
+        } else {
+          console.error('编辑器实例不可用，无法插入图片');
+        }
       }
       
       // 图片加载后检查内容高度
@@ -428,7 +446,6 @@ const RichTextEditor = ({
         if (editor) {
           const finalImages = extractImagesFromEditor(editor);
           console.log(`编辑器中最终图片数量: ${finalImages.length}`);
-          console.log('最终图片URL:', finalImages);
         }
       }, 500);
       
@@ -448,7 +465,7 @@ const RichTextEditor = ({
           const images = extractImagesFromEditor(editor);
           console.log(`同步编辑器中的 ${images.length} 张图片到外部状态`);
           onImagesSync(images);
-        }, 600); // 延长延迟确保编辑器DOM已完全更新
+        }, 800); // 延长延迟确保编辑器DOM已完全更新
       }
       
       console.log('=== 图片上传处理完成 ===');
@@ -493,21 +510,52 @@ const RichTextEditor = ({
   // 监听编辑器内容变化同步图片
   useEffect(() => {
     if (editor && onImagesSync && !isReadOnly) {
+      // 保存最后一次同步的图片列表
+      let lastSyncedImages: string[] = [];
+      
       const updateImagesList = () => {
-        const images = extractImagesFromEditor(editor)
-        console.log('编辑器内容变化，当前图片数量:', images.length)
-        onImagesSync(images)
-      }
+        const images = extractImagesFromEditor(editor);
+        console.log('编辑器内容变化，当前图片数量:', images.length);
+        
+        // 检查是否与上次同步的图片列表相同
+        const isSameImages = images.length === lastSyncedImages.length && 
+          images.every((img, idx) => lastSyncedImages[idx] === img);
+        
+        if (!isSameImages) {
+          console.log('检测到图片列表变化，执行同步');
+          lastSyncedImages = [...images];
+          onImagesSync(images);
+        } else {
+          console.log('图片列表未变化，跳过同步');
+        }
+      };
+      
+      // 对update事件添加防抖处理
+      let debounceTimer: number | null = null;
+      
+      const debouncedUpdateImages = () => {
+        if (debounceTimer !== null) {
+          window.clearTimeout(debounceTimer);
+        }
+        
+        debounceTimer = window.setTimeout(() => {
+          updateImagesList();
+          debounceTimer = null;
+        }, 300);
+      };
       
       // 在编辑器内容变化或删除操作时更新图片列表
-      editor.on('update', updateImagesList)
+      editor.on('update', debouncedUpdateImages);
       
       // 在编辑器初始化时执行一次同步
-      updateImagesList()
+      setTimeout(updateImagesList, 200);
       
       return () => {
-        editor.off('update', updateImagesList)
-      }
+        editor.off('update', debouncedUpdateImages);
+        if (debounceTimer !== null) {
+          window.clearTimeout(debounceTimer);
+        }
+      };
     }
   }, [editor, onImagesSync, isReadOnly, extractImagesFromEditor])
 

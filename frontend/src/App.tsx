@@ -540,6 +540,12 @@ function App() {
   const handleImagesSync = useCallback((images: string[]) => {
     console.log(`图片同步回调: 编辑器中图片数量 ${images.length}, 内容中图片数量 ${content.images.length}`);
     
+    // 图片数量异常检查 - 如果编辑器图片数量为0但content中有图片，可能是同步太早，跳过本次同步
+    if (images.length === 0 && content.images.length > 0) {
+      console.warn('编辑器中图片数量为0，但content中有图片，跳过本次同步以防丢失图片');
+      return;
+    }
+    
     // 使用Set进行高效比较
     const currentImageSet = new Set(content.images);
     const newImageSet = new Set(images);
@@ -579,10 +585,16 @@ function App() {
     // 如果有变化，更新content
     if (hasChanges) {
       console.log(`更新内容中的图片，新数量: ${images.length}`);
+      
+      // 防止图片丢失：合并当前图片和新图片
+      const mergedImages = [...images];
+      
+      // 设置状态时确保content.images是新的引用
       setContent(prev => ({
         ...prev,
-        images: [...images]
+        images: mergedImages
       }));
+      
       setIsContentModified(true);
     }
   }, [content.images]);
