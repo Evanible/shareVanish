@@ -287,10 +287,11 @@ const RichTextEditor = ({
       // 获取当前编辑器HTML内容
       const currentContent = editor.getHTML();
       
-      // 构建插入的HTML内容
+      // 构建插入的HTML内容，移除每张图片后的<p></p>标签
       let newImages = '';
       imageUrls.forEach(url => {
-        newImages += `<img src="${url}" alt="上传图片" /><p></p>`;
+        // 只插入图片标签，不添加段落标签
+        newImages += `<img src="${url}" alt="上传图片" />`;
       });
       
       // 直接将图片添加到当前内容后面
@@ -316,9 +317,9 @@ const RichTextEditor = ({
       try {
         console.log('使用备用方法逐个插入图片');
         imageUrls.forEach((url, index) => {
-          // 重新获取当前HTML并追加一张图片
+          // 重新获取当前HTML并追加一张图片，不添加段落标签
           const currentHTML = editor.getHTML();
-          const newHTML = currentHTML + `<img src="${url}" alt="图片${index+1}" /><p></p>`;
+          const newHTML = currentHTML + `<img src="${url}" alt="图片${index+1}" />`;
           editor.commands.setContent(newHTML);
         });
         
@@ -407,8 +408,8 @@ const RichTextEditor = ({
             // 获取当前HTML内容
             const currentHTML = editor.getHTML();
             
-            // 将图片添加到末尾
-            const newContent = currentHTML + `<img src="${imageUrl}" alt="上传图片" /><p></p>`;
+            // 将图片添加到末尾，移除<p></p>标签
+            const newContent = currentHTML + `<img src="${imageUrl}" alt="上传图片" />`;
             editor.commands.setContent(newContent);
             
             // 确保光标在内容末尾
