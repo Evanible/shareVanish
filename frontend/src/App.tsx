@@ -539,61 +539,15 @@ function App() {
   const handleImagesSync = useCallback((images: string[]) => {
     console.log(`图片同步回调: 编辑器中图片数量 ${images.length}, 内容中图片数量 ${content.images.length}`);
     
-    // 图片数量异常检查 - 如果编辑器图片数量为0但content中有图片，可能是同步太早，跳过本次同步
-    if (images.length === 0 && content.images.length > 0) {
-      console.warn('编辑器中图片数量为0，但content中有图片，跳过本次同步以防丢失图片');
-      return;
-    }
+    // 无论如何都更新图片状态，即使是空数组也更新
+    setContent(prev => ({
+      ...prev,
+      images: images
+    }));
     
-    // 使用Set进行高效比较
-    const currentImageSet = new Set(content.images);
-    const newImageSet = new Set(images);
-    
-    // 检查是否有变化
-    let hasChanges = false;
-    
-    // 检查图片数量是否超过限制
-    if (images.length > MAX_IMAGES) {
-      console.warn(`编辑器图片数量(${images.length})超过限制(${MAX_IMAGES})，但不立即提示`);
-      // 记录日志但不立即提示用户
-      hasChanges = true;
-    } else if (images.length !== content.images.length) {
-      console.log(`图片数量变化: ${content.images.length} -> ${images.length}`);
-      hasChanges = true;
-    } else {
-      // 检查内容是否变化
-      for (const img of images) {
-        if (!currentImageSet.has(img)) {
-          console.log(`发现新图片: ${img.substring(0, 30)}...`);
-          hasChanges = true;
-          break;
-        }
-      }
-      
-      if (!hasChanges) {
-        for (const img of content.images) {
-          if (!newImageSet.has(img)) {
-            console.log(`图片被移除: ${img.substring(0, 30)}...`);
-            hasChanges = true;
-            break;
-          }
-        }
-      }
-    }
-    
-    // 如果有变化，更新content
-    if (hasChanges) {
-      console.log(`更新内容中的图片，新数量: ${images.length}`);
-      
-      // 防止图片丢失：合并当前图片和新图片
-      const mergedImages = [...images];
-      
-      // 设置状态时确保content.images是新的引用
-      setContent(prev => ({
-        ...prev,
-        images: mergedImages
-      }));
-      
+    // 如果图片状态发生变化，标记为已修改
+    if (images.length !== content.images.length || 
+        !images.every((img, idx) => content.images[idx] === img)) {
       setIsContentModified(true);
     }
   }, [content.images]);
