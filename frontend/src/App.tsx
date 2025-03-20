@@ -924,19 +924,6 @@ function App() {
             <h3 className="preview-stats">
               已上传 {content.images.length}/{MAX_IMAGES} 张图片
             </h3>
-            <div className="preview-images">
-              {content.images.map((image, index) => (
-                <div key={index} className="thumbnail">
-                  <img src={image} alt={`上传图片 ${index + 1}`} />
-                  <button
-                    className="delete-button"
-                    onClick={() => handleImageDelete(index)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </main>
