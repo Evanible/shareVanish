@@ -281,29 +281,18 @@ const RichTextEditor = ({
       return
     }
     
-    console.log(`尝试插入 ${imageUrls.length} 张图片，使用直接设置HTML方法`)
+    console.log(`尝试插入 ${imageUrls.length} 张图片，使用插入命令`)
     
     try {
-      // 获取当前编辑器HTML内容
-      const currentContent = editor.getHTML();
+      // 确保编辑器是聚焦的
+      editor.commands.focus();
       
-      // 构建插入的HTML内容，移除每张图片后的<p></p>标签
-      let newImages = '';
+      // 在光标位置逐个插入图片
       imageUrls.forEach(url => {
-        // 只插入图片标签，不添加段落标签
-        newImages += `<img src="${url}" alt="上传图片" />`;
+        editor.commands.insertContent(`<img src="${url}" alt="上传图片" />`);
       });
       
-      // 直接将图片添加到当前内容后面
-      const newContent = currentContent + newImages;
-      
-      // 设置新内容
-      editor.commands.setContent(newContent);
-      
-      // 确保编辑器聚焦到内容末尾
-      editor.commands.focus('end');
-      
-      console.log('图片插入完成，使用setContent方法');
+      console.log('图片已插入到光标位置');
       
       // 验证插入后的内容
       setTimeout(() => {
@@ -313,15 +302,21 @@ const RichTextEditor = ({
     } catch (error) {
       console.error('插入图片过程中发生错误:', error);
       
-      // 备用方法：每张图片单独插入
+      // 备用方法：使用setContent API
       try {
-        console.log('使用备用方法逐个插入图片');
-        imageUrls.forEach((url, index) => {
-          // 重新获取当前HTML并追加一张图片，不添加段落标签
-          const currentHTML = editor.getHTML();
-          const newHTML = currentHTML + `<img src="${url}" alt="图片${index+1}" />`;
-          editor.commands.setContent(newHTML);
+        console.log('使用备用方法插入图片');
+        
+        // 保存当前选区位置的引用
+        const { from } = editor.state.selection;
+        
+        // 创建图片HTML
+        let imagesHtml = '';
+        imageUrls.forEach(url => {
+          imagesHtml += `<img src="${url}" alt="上传图片" />`;
         });
+        
+        // 在当前位置插入内容
+        editor.chain().focus().insertContentAt(from, imagesHtml).run();
         
         // 再次验证
         setTimeout(() => {
@@ -398,42 +393,8 @@ const RichTextEditor = ({
       if (uploadedImages.length > 0 && editor) {
         console.log(`准备将 ${uploadedImages.length} 张图片插入编辑器`);
         
-        // 直接设置HTML插入所有图片 - 更改为针对单张图片的情况优化处理
-        if (uploadedImages.length === 1) {
-          // 单张图片处理
-          const imageUrl = uploadedImages[0];
-          console.log('插入单张图片: ' + imageUrl.substring(0, 30) + '...');
-          
-          try {
-            // 获取当前HTML内容
-            const currentHTML = editor.getHTML();
-            
-            // 将图片添加到末尾，移除<p></p>标签
-            const newContent = currentHTML + `<img src="${imageUrl}" alt="上传图片" />`;
-            editor.commands.setContent(newContent);
-            
-            // 确保光标在内容末尾
-            editor.commands.focus('end');
-            
-            // 强制触发DOM更新
-            setTimeout(() => {
-              // 验证图片是否成功插入
-              const images = extractImagesFromEditor(editor);
-              console.log(`验证：编辑器中现有图片数量: ${images.length}`);
-              
-              // 同步到外部
-              if (onImagesSync) {
-                console.log('单张图片上传后立即同步到外部');
-                onImagesSync(images);
-              }
-            }, 100);
-          } catch (error) {
-            console.error('单张图片插入失败:', error);
-          }
-        } else {
-          // 多张图片处理使用原有方法
-          insertMultipleImages(uploadedImages);
-        }
+        // 无论单张还是多张图片，都使用insertMultipleImages函数处理
+        insertMultipleImages(uploadedImages);
       } else {
         console.log('没有图片需要插入或编辑器不可用');
       }
