@@ -363,10 +363,13 @@ footer p {
   border-radius: 4px;
   display: block;
   font-weight: normal;
+  text-align: left;
+  width: 100%;
 }
 
 /* 预览图片容器 */
 .preview-images {
+  display: block;
   width: 100%;
   overflow: hidden;
 }
@@ -381,8 +384,8 @@ footer p {
 /* 缩略图容器改进 */
 .thumbnail {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
@@ -390,6 +393,7 @@ footer p {
   transition: transform 0.2s ease;
   float: left;
   margin: 0 15px 15px 0;
+  display: block;
 }
 
 .thumbnail:hover {
