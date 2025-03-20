@@ -369,9 +369,9 @@ footer p {
 .preview-images {
   width: 100%;
   overflow: hidden;
-  clear: both;
 }
 
+/* 使用清除浮动确保容器包含所有浮动元素 */
 .preview-images:after {
   content: "";
   display: table;
@@ -381,15 +381,15 @@ footer p {
 /* 缩略图容器改进 */
 .thumbnail {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 160px;
+  height: 160px;
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   transition: transform 0.2s ease;
   float: left;
-  margin: 0 10px 10px 0;
+  margin: 0 15px 15px 0;
 }
 
 .thumbnail:hover {
