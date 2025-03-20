@@ -8,6 +8,7 @@ import './test.css'
 
 // 定义常量
 const MAX_IMAGES = 10; // 最大图片数量
+const MAX_IMAGE_SIZE_MB = 3; // 单张图片最大大小限制（MB）
 
 function App() {
   // 状态管理
@@ -34,6 +35,8 @@ function App() {
   const [popupError, setPopupError] = useState('')
   // 添加通知消息状态
   const [notificationMessage, setNotificationMessage] = useState('')
+  // 添加图片提示信息状态
+  const [imageMessage, setImageMessage] = useState('')
   // 弹窗引用，用于检测外部点击
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -487,11 +490,10 @@ function App() {
       return false;
     }
     
-    // 检查图片数量限制
+    // 检查图片数量限制，但不显示错误消息，只返回false
     if (content.images.length >= MAX_IMAGES) {
       console.log(`图片数量已达上限 (${MAX_IMAGES})`);
-      setError(`图片数量已达上限 (${MAX_IMAGES}张)`);
-      setTimeout(() => setError(''), 3000); // 3秒后清除错误提示
+      // 不再显示即时错误，只在内部记录
       return false;
     }
     
@@ -506,12 +508,76 @@ function App() {
 
   // 处理图片删除
   const handleImageDelete = (index: number) => {
+    // 清除任何图片相关的提示消息
+    if (imageMessage) {
+      setImageMessage('');
+    }
+    
     setContent(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }))
     setIsContentModified(true)
+    
+    // 发送图片删除事件到编辑器
+    if (content.images[index]) {
+      const event = new CustomEvent('removeImage', {
+        detail: { src: content.images[index] }
+      });
+      document.dispatchEvent(event);
+    }
   }
+
+  // 处理图片同步
+  const handleImagesSync = useCallback((images: string[]) => {
+    console.log(`图片同步回调: 编辑器中图片数量 ${images.length}, 内容中图片数量 ${content.images.length}`);
+    
+    // 使用Set进行高效比较
+    const currentImageSet = new Set(content.images);
+    const newImageSet = new Set(images);
+    
+    // 检查是否有变化
+    let hasChanges = false;
+    
+    // 检查图片数量是否超过限制
+    if (images.length > MAX_IMAGES) {
+      console.warn(`编辑器图片数量(${images.length})超过限制(${MAX_IMAGES})，但不立即提示`);
+      // 记录日志但不立即提示用户
+      hasChanges = true;
+    } else if (images.length !== content.images.length) {
+      console.log(`图片数量变化: ${content.images.length} -> ${images.length}`);
+      hasChanges = true;
+    } else {
+      // 检查内容是否变化
+      for (const img of images) {
+        if (!currentImageSet.has(img)) {
+          console.log(`发现新图片: ${img.substring(0, 30)}...`);
+          hasChanges = true;
+          break;
+        }
+      }
+      
+      if (!hasChanges) {
+        for (const img of content.images) {
+          if (!newImageSet.has(img)) {
+            console.log(`图片被移除: ${img.substring(0, 30)}...`);
+            hasChanges = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    // 如果有变化，更新content
+    if (hasChanges) {
+      console.log(`更新内容中的图片，新数量: ${images.length}`);
+      setContent(prev => ({
+        ...prev,
+        images: [...images]
+      }));
+      setIsContentModified(true);
+    }
+  }, [content.images]);
 
   // 文件拖放处理
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -568,6 +634,30 @@ function App() {
     
     if (!accessCode || isLoading) return
     
+    // 保存前检查图片数量和大小
+    const oversizedImages = validateImages(content.images);
+    if (content.images.length > MAX_IMAGES || oversizedImages.length > 0) {
+      let message = "";
+      if (content.images.length > MAX_IMAGES) {
+        message += `图片数量(${content.images.length})超过限制(${MAX_IMAGES})，仅保存前${MAX_IMAGES}张。`;
+      }
+      if (oversizedImages.length > 0) {
+        message += `${oversizedImages.length}张图片超过${MAX_IMAGE_SIZE_MB}MB大小限制，可能影响保存。`;
+      }
+      setImageMessage(message);
+      
+      // 修改content，仅保留限制内的图片
+      if (content.images.length > MAX_IMAGES) {
+        setContent(prev => ({
+          ...prev,
+          images: prev.images.slice(0, MAX_IMAGES)
+        }));
+      }
+    } else {
+      // 清除图片提示
+      setImageMessage('');
+    }
+    
     setIsLoading(true)
     console.log('设置isLoading为true');
     setError('')
@@ -611,9 +701,52 @@ function App() {
     }
   }
 
+  // 验证图片大小和数量
+  const validateImages = (images: string[]): string[] => {
+    // 查找超过大小限制的图片
+    const oversizedImages: string[] = [];
+    
+    for (const img of images) {
+      // Base64图片大小估算 (去掉头部后的字符串长度 * 0.75 / 1024 / 1024)
+      const base64Length = img.substring(img.indexOf(',') + 1).length;
+      const sizeInMB = (base64Length * 0.75) / (1024 * 1024);
+      
+      if (sizeInMB > MAX_IMAGE_SIZE_MB) {
+        console.log(`发现超大图片: ~${sizeInMB.toFixed(2)}MB`);
+        oversizedImages.push(img);
+      }
+    }
+    
+    return oversizedImages;
+  }
+
   // 处理内容创建
   const handleCreateContent = async () => {
     if (isLoading) return
+    
+    // 创建前检查图片数量和大小
+    const oversizedImages = validateImages(content.images);
+    if (content.images.length > MAX_IMAGES || oversizedImages.length > 0) {
+      let message = "";
+      if (content.images.length > MAX_IMAGES) {
+        message += `图片数量(${content.images.length})超过限制(${MAX_IMAGES})，仅创建前${MAX_IMAGES}张。`;
+      }
+      if (oversizedImages.length > 0) {
+        message += `${oversizedImages.length}张图片超过${MAX_IMAGE_SIZE_MB}MB大小限制，可能影响创建。`;
+      }
+      setImageMessage(message);
+      
+      // 修改content，仅保留限制内的图片
+      if (content.images.length > MAX_IMAGES) {
+        setContent(prev => ({
+          ...prev,
+          images: prev.images.slice(0, MAX_IMAGES)
+        }));
+      }
+    } else {
+      // 清除图片提示
+      setImageMessage('');
+    }
     
     setIsLoading(true)
     setError('')
@@ -635,6 +768,9 @@ function App() {
         } else {
           setNotificationMessage(`已成功创建访问码 <code class="access-code">${newAccessCode}</code>`)
         }
+        
+        // 清除图片提示
+        setImageMessage('');
         
         // 5秒后清除通知
         setTimeout(() => {
@@ -765,12 +901,20 @@ function App() {
               initialValue={content.text}
               onChange={handleTextChange}
               onImageUpload={handleImageUpload}
+              onImagesSync={handleImagesSync}
               isReadOnly={false}
               showSaveButton={false}
               onSave={handleUpdateContent}
               isModified={isContentModified}
             />
         </section>
+
+        {/* 图片提示信息 - 位于编辑区和图片上传区之间 */}
+        {imageMessage && (
+          <div className="image-message">
+            {imageMessage}
+          </div>
+        )}
 
         {/* 图片区域 - 只在有图片或用户开始上传时显示 */}
         {/* 图片上传区 */}
@@ -780,24 +924,29 @@ function App() {
             {isDragActive ? (
               <p>拖放图片到这里</p>
             ) : (
-              <p>点击或拖放图片到这里上传</p>
+              <p>点击或拖放图片到这里上传 (最多{MAX_IMAGES}张，每张不超过{MAX_IMAGE_SIZE_MB}MB)</p>
             )}
           </div>
 
           {/* 图片预览区 - 只在有图片时显示 */}
           {content.images.length > 0 && (
             <div className="preview-section">
+              <div className="preview-stats">
+                已上传 {content.images.length}/{MAX_IMAGES} 张图片
+              </div>
+              <div className="preview-images">
                 {content.images.map((image, index) => (
-                <div key={index} className="thumbnail">
-                  <img src={image} alt={`上传图片 ${index + 1}`} />
-                  <button
-                    className="delete-button"
-                    onClick={() => handleImageDelete(index)}
-                  >
-                    ×
-        </button>
+                  <div key={index} className="thumbnail">
+                    <img src={image} alt={`上传图片 ${index + 1}`} />
+                    <button
+                      className="delete-button"
+                      onClick={() => handleImageDelete(index)}
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
+              </div>
             </div>
           )}
         </div>

@@ -36,6 +36,49 @@ const RichTextEditor = ({
   // 用于防止重复更新
   const lastHTMLRef = useRef<string>('')
   
+  // 从编辑器内容中提取所有图片
+  const extractImagesFromEditor = useCallback((editor: any) => {
+    if (!editor) {
+      console.log('提取图片失败: 编辑器实例不存在')
+      return []
+    }
+    
+    console.log('开始从编辑器内容中提取图片')
+    
+    try {
+      const images: string[] = []
+      const content = editor.getJSON()
+      
+      // 打印编辑器内容结构
+      console.log('编辑器内容结构:', JSON.stringify(content, null, 2).substring(0, 200) + '...')
+      
+      // 递归查找图片节点
+      const findImages = (node: any) => {
+        if (node.type === 'image' && node.attrs && node.attrs.src) {
+          images.push(node.attrs.src)
+          console.log(`找到图片节点: ${node.attrs.src.substring(0, 30)}...`)
+        }
+        
+        if (node.content && Array.isArray(node.content)) {
+          node.content.forEach(findImages)
+        }
+      }
+      
+      if (content && content.content) {
+        console.log(`遍历编辑器内容，顶层节点数量: ${content.content.length}`)
+        content.content.forEach(findImages)
+      } else {
+        console.log('编辑器内容为空或格式不正确')
+      }
+      
+      console.log(`提取到编辑器中的图片总数: ${images.length}`)
+      return images
+    } catch (error) {
+      console.error('提取图片时出错:', error)
+      return []
+    }
+  }, [])
+  
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -99,6 +142,97 @@ const RichTextEditor = ({
     }
   }, [editor, checkContentHeight, onEditorReady])
 
+  // 添加图片删除事件监听
+  useEffect(() => {
+    if (!editor || isReadOnly) return;
+    
+    // 移除编辑器中的图片函数
+    const removeImageFromEditor = (e: CustomEvent) => {
+      const src = e.detail?.src;
+      
+      if (!src || !editor) {
+        console.log('移除图片事件：无效的图片源或编辑器未就绪');
+        return;
+      }
+      
+      console.log(`尝试从编辑器中移除图片: ${src.substring(0, 30)}...`);
+      
+      try {
+        // 获取编辑器内容JSON
+        const content = editor.getJSON();
+        // 跟踪是否找到并移除了图片
+        let imagesRemoved = 0;
+        
+        // 递归查找并标记要删除的图片节点
+        const findAndRemoveImage = (node: any, path: number[] = []): boolean => {
+          // 检查是否是图片节点且匹配目标src
+          if (node.type === 'image' && node.attrs && node.attrs.src === src) {
+            console.log(`找到匹配的图片节点，路径:`, path);
+            imagesRemoved++;
+            return true;
+          }
+          
+          // 如果有子节点，递归检查
+          if (node.content && Array.isArray(node.content)) {
+            // 从后向前遍历，以便删除不影响前面的索引
+            for (let i = node.content.length - 1; i >= 0; i--) {
+              const childPath = [...path, i];
+              const isImageNode = findAndRemoveImage(node.content[i], childPath);
+              
+              if (isImageNode) {
+                // 从内容数组中移除匹配的图片节点
+                node.content.splice(i, 1);
+                console.log(`从路径 ${childPath.join('.')} 移除图片节点`);
+                
+                // 如果父节点是段落且现在为空，保留一个空段落
+                if (node.type === 'paragraph' && node.content.length === 0) {
+                  console.log('保留空段落节点');
+                }
+                
+                return false; // 继续搜索其他可能的匹配
+              }
+            }
+          }
+          
+          return false;
+        };
+        
+        // 从根节点开始查找并移除图片
+        if (content && content.content) {
+          findAndRemoveImage(content);
+        }
+        
+        // 如果找到并移除了图片，更新编辑器内容
+        if (imagesRemoved > 0) {
+          console.log(`从编辑器中移除了 ${imagesRemoved} 个图片节点`);
+          editor.commands.setContent(content);
+          
+          // 触发内容更新事件
+          setTimeout(() => {
+            const updatedImages = extractImagesFromEditor(editor);
+            console.log(`更新后编辑器中的图片数量: ${updatedImages.length}`);
+            
+            if (onImagesSync) {
+              onImagesSync(updatedImages);
+            }
+          }, 50);
+        } else {
+          console.log('未找到匹配的图片节点');
+        }
+      } catch (error) {
+        console.error('移除图片时发生错误:', error);
+      }
+    };
+    
+    // 添加自定义事件监听器
+    document.addEventListener('removeImage', removeImageFromEditor as EventListener);
+    
+    // 清理函数
+    return () => {
+      document.removeEventListener('removeImage', removeImageFromEditor as EventListener);
+    };
+  }, [editor, extractImagesFromEditor, isReadOnly, onImagesSync]);
+
   // 监听窗口大小变化时重新检查内容高度
   useEffect(() => {
     const handleResize = () => checkContentHeight()
@@ -140,49 +274,6 @@ const RichTextEditor = ({
     }
   }, [editor, isReadOnly])
 
-  // 从编辑器内容中提取所有图片
-  const extractImagesFromEditor = useCallback((editor: any) => {
-    if (!editor) {
-      console.log('提取图片失败: 编辑器实例不存在')
-      return []
-    }
-    
-    console.log('开始从编辑器内容中提取图片')
-    
-    try {
-      const images: string[] = []
-      const content = editor.getJSON()
-      
-      // 打印编辑器内容结构
-      console.log('编辑器内容结构:', JSON.stringify(content, null, 2).substring(0, 200) + '...')
-      
-      // 递归查找图片节点
-      const findImages = (node: any) => {
-        if (node.type === 'image' && node.attrs && node.attrs.src) {
-          images.push(node.attrs.src)
-          console.log(`找到图片节点: ${node.attrs.src.substring(0, 30)}...`)
-        }
-        
-        if (node.content && Array.isArray(node.content)) {
-          node.content.forEach(findImages)
-        }
-      }
-      
-      if (content && content.content) {
-        console.log(`遍历编辑器内容，顶层节点数量: ${content.content.length}`)
-        content.content.forEach(findImages)
-      } else {
-        console.log('编辑器内容为空或格式不正确')
-      }
-      
-      console.log(`提取到编辑器中的图片总数: ${images.length}`)
-      return images
-    } catch (error) {
-      console.error('提取图片时出错:', error)
-      return []
-    }
-  }, [])
-  
   // 新增：使用不同的方法插入多张图片
   const insertMultipleImages = useCallback((imageUrls: string[]) => {
     if (!editor || imageUrls.length === 0) {
@@ -193,34 +284,35 @@ const RichTextEditor = ({
     console.log(`尝试使用新方法插入 ${imageUrls.length} 张图片`)
     
     try {
-      // 获取当前选择
-      const { state } = editor.view
-      
-      // 改进：分别插入每一张图片，避免一次性插入HTML导致的图片丢失问题
+      // 获取当前选择并聚焦编辑器
       editor.chain().focus()
       
-      // 逐个插入图片
+      // 改进：单独处理每张图片的插入，确保每张都能成功显示
       imageUrls.forEach((url, index) => {
         console.log(`正在插入第 ${index + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`)
         
-        // 插入图片
+        // 单独为每张图片创建一个新的命令链，避免一次性插入多张导致的问题
         editor.chain()
+          .focus()
           .insertContent(`<img src="${url}" />`)
           .run()
-          
-        // 在图片后添加段落（除了最后一张图片）
-        if (index < imageUrls.length - 1) {
-          editor.chain().insertContent('<p></p>').run()
-        }
+        
+        // 在每张图片后添加段落，使得图片能够分开显示
+        editor.chain()
+          .insertContent('<p></p>')
+          .run()
       })
       
-      console.log('使用改进的插入方法完成多张图片插入')
+      console.log('完成多张图片插入')
       
       // 验证插入后的内容
       setTimeout(() => {
         const images = extractImagesFromEditor(editor)
-        console.log(`验证：插入后编辑器中的图片数量: ${images.length}`)
-      }, 100)
+        console.log(`验证：插入后编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`)
+        if (images.length !== imageUrls.length) {
+          console.warn('警告：插入的图片数量与期望不符')
+        }
+      }, 200)
     } catch (error) {
       console.error('插入多张图片失败:', error)
     }
@@ -237,7 +329,7 @@ const RichTextEditor = ({
       // 调试日志: 显示选择的文件数量
       console.log(`=== 图片上传开始: 选择了 ${files.length} 个文件 ===`)
       
-      // 支持多图上传
+      // 支持多图上传，记录所有成功的上传
       const uploadedImages: string[] = []
       let successCount = 0
       
@@ -246,10 +338,10 @@ const RichTextEditor = ({
         // 调试日志: 处理单个图片
         console.log(`处理图片: ${file.name}, 大小: ${(file.size / 1024 / 1024).toFixed(2)}MB`)
         
-        // 检查图片大小限制
+        // 检查图片大小限制，但不弹出alert，只记录日志
         if (file.size > 3 * 1024 * 1024) {
-          alert(`图片 ${file.name} 大小超过3MB限制`)
-          return false
+          console.warn(`图片 ${file.name} 大小超过3MB限制，但仍将尝试上传`)
+          // 不再中断上传流程
         }
         
         try {
@@ -267,7 +359,7 @@ const RichTextEditor = ({
             console.log(`图片 ${file.name} 已添加至上传列表，当前列表长度: ${uploadedImages.length}`)
             return true
           } else {
-            console.log(`图片 ${file.name} 被拒绝上传`)
+            console.log(`图片 ${file.name} 被拒绝上传，但不显示错误消息`)
             return false // 上传失败
           }
         } catch (error) {
@@ -281,15 +373,14 @@ const RichTextEditor = ({
         console.log(`开始处理第 ${i+1}/${files.length} 张图片`)
         const result = await processImage(files[i])
         if (result) successCount++
-        else if (successCount === 0) break // 如果第一张就失败，停止处理
       }
       
       console.log(`图片处理完成: ${successCount}/${files.length} 张成功，准备插入编辑器`)
       console.log(`待插入图片列表长度: ${uploadedImages.length}`)
       
-      // 使用新方法批量插入图片
+      // 使用改进的方法批量插入图片
       if (uploadedImages.length > 0) {
-        console.log('使用新方法插入多张图片')
+        console.log('使用改进后的方法插入多张图片')
         insertMultipleImages(uploadedImages)
       }
       
@@ -304,11 +395,11 @@ const RichTextEditor = ({
           console.log(`编辑器中最终图片数量: ${finalImages.length}`);
           console.log('最终图片URL:', finalImages);
         }
-      }, 300);
+      }, 500);
       
-      // 如果有图片未能上传，给出提示
+      // 移除超过限制的提示，仅记录日志
       if (successCount < files.length) {
-        alert(`已达到最大图片数量限制，仅插入了 ${successCount} 张图片`);
+        console.log(`注意：${files.length - successCount} 张图片未能成功上传`);
       }
       
       // 清空input以允许重复选择相同文件
@@ -322,12 +413,12 @@ const RichTextEditor = ({
           const images = extractImagesFromEditor(editor);
           console.log(`同步编辑器中的 ${images.length} 张图片到外部状态`);
           onImagesSync(images);
-        }, 400); // 延长延迟确保编辑器DOM已完全更新
+        }, 600); // 延长延迟确保编辑器DOM已完全更新
       }
       
       console.log('=== 图片上传处理完成 ===');
     },
-    [editor, onImageUpload, isReadOnly, checkContentHeight, onImagesSync, insertMultipleImages]
+    [editor, onImageUpload, isReadOnly, checkContentHeight, onImagesSync, insertMultipleImages, extractImagesFromEditor]
   )
   
   // 从File对象创建DataURL
