@@ -281,51 +281,64 @@ const RichTextEditor = ({
       return
     }
     
-    console.log(`尝试插入 ${imageUrls.length} 张图片，使用插入命令`)
+    console.log(`尝试插入 ${imageUrls.length} 张图片，在光标位置`)
     
     try {
       // 确保编辑器是聚焦的
       editor.commands.focus();
       
-      // 在光标位置逐个插入图片
-      imageUrls.forEach(url => {
-        editor.commands.insertContent(`<img src="${url}" alt="上传图片" />`);
+      // 保存当前选区位置的引用
+      const { from } = editor.state.selection;
+      
+      // 构建所有图片的HTML
+      let imagesHtml = '';
+      imageUrls.forEach((url, index) => {
+        imagesHtml += `<img src="${url}" alt="上传图片${index+1}" />`;
+        console.log(`添加图片 ${index+1} 到HTML: ${url.substring(0, 30)}...`);
       });
       
-      console.log('图片已插入到光标位置');
+      // 一次性插入所有图片
+      console.log(`在位置 ${from} 插入 ${imageUrls.length} 张图片的HTML`);
+      editor.chain().focus().insertContentAt(from, imagesHtml).run();
       
       // 验证插入后的内容
       setTimeout(() => {
         const images = extractImagesFromEditor(editor);
         console.log(`验证：编辑器中的图片数量: ${images.length}，期望数量: ${imageUrls.length}`);
+        
+        // 如果图片数量不匹配，尝试逐个插入
+        if (images.length < imageUrls.length) {
+          console.log('检测到图片数量不匹配，尝试备用方法');
+          retryInsertImages(imageUrls);
+        }
       }, 300);
     } catch (error) {
-      console.error('插入图片过程中发生错误:', error);
+      console.error('插入多张图片过程中发生错误:', error);
+      retryInsertImages(imageUrls);
+    }
+  }, [editor, extractImagesFromEditor]);
+  
+  // 添加备用的图片插入方法
+  const retryInsertImages = useCallback((imageUrls: string[]) => {
+    if (!editor || imageUrls.length === 0) return;
+    
+    console.log('使用备用方法逐个插入图片');
+    
+    try {
+      // 逐个插入图片
+      imageUrls.forEach((url, index) => {
+        console.log(`备用方法：插入第 ${index+1}/${imageUrls.length} 张图片`);
+        editor.commands.focus();
+        editor.commands.insertContent(`<img src="${url}" alt="上传图片${index+1}" />`);
+      });
       
-      // 备用方法：使用setContent API
-      try {
-        console.log('使用备用方法插入图片');
-        
-        // 保存当前选区位置的引用
-        const { from } = editor.state.selection;
-        
-        // 创建图片HTML
-        let imagesHtml = '';
-        imageUrls.forEach(url => {
-          imagesHtml += `<img src="${url}" alt="上传图片" />`;
-        });
-        
-        // 在当前位置插入内容
-        editor.chain().focus().insertContentAt(from, imagesHtml).run();
-        
-        // 再次验证
-        setTimeout(() => {
-          const finalImages = extractImagesFromEditor(editor);
-          console.log(`最终图片数量: ${finalImages.length}，备用方法后`);
-        }, 300);
-      } catch (fallbackError) {
-        console.error('备用方法也失败:', fallbackError);
-      }
+      // 再次验证
+      setTimeout(() => {
+        const finalImages = extractImagesFromEditor(editor);
+        console.log(`备用方法后最终图片数量: ${finalImages.length}`);
+      }, 300);
+    } catch (fallbackError) {
+      console.error('备用插入方法也失败:', fallbackError);
     }
   }, [editor, extractImagesFromEditor]);
   
