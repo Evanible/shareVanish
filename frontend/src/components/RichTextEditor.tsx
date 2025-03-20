@@ -167,9 +167,8 @@ const RichTextEditor = ({
           // 通过回调函数处理图片
           const success = onImageUpload(imageDataUrl)
           
-          // 如果成功，插入图片到编辑器
-          if (success && editor) {
-            editor.chain().focus().setImage({ src: imageDataUrl }).run()
+          // 如果成功，将图片添加到待插入列表
+          if (success) {
             uploadedImages.push(imageDataUrl)
             return true
           } else {
@@ -182,11 +181,37 @@ const RichTextEditor = ({
         }
       }
       
-      // 逐个处理图片，而不是在循环中
+      // 逐个处理图片
       for (let i = 0; i < files.length; i++) {
         const result = await processImage(files[i])
         if (result) successCount++
         else if (successCount === 0) break // 如果第一张就失败，停止处理
+      }
+      
+      // 批量插入所有成功上传的图片到编辑器
+      if (editor && uploadedImages.length > 0) {
+        // 获取当前光标位置
+        const { view } = editor
+        const { state } = view
+        const { selection } = state
+        const position = selection.$anchor.pos
+        
+        // 保存当前光标位置
+        let currentPosition = position
+        
+        // 逐个插入图片，每张图片后添加一个换行
+        uploadedImages.forEach((imageUrl, index) => {
+          // 确保获得焦点并插入图片
+          editor.chain().focus().setImage({ src: imageUrl }).run()
+          
+          // 如果不是最后一张图片，添加换行
+          if (index < uploadedImages.length - 1) {
+            editor.chain().focus().enter().run()
+          }
+        })
+        
+        // 插入完成后再获得一次焦点，确保用户可以继续输入
+        editor.chain().focus().run()
       }
       
       // 图片加载后检查内容高度
@@ -202,10 +227,12 @@ const RichTextEditor = ({
       
       // 同步所有图片到外部
       if (onImagesSync && uploadedImages.length > 0) {
-        // 获取编辑器中所有图片
-        const images = extractImagesFromEditor(editor)
-        console.log('同步编辑器中的图片到外部，数量:', images.length)
-        onImagesSync(images)
+        setTimeout(() => {
+          // 获取编辑器中所有图片
+          const images = extractImagesFromEditor(editor)
+          console.log('同步编辑器中的图片到外部，数量:', images.length)
+          onImagesSync(images)
+        }, 100) // 短暂延迟确保编辑器DOM已更新
       }
     },
     [editor, onImageUpload, isReadOnly, checkContentHeight, onImagesSync]
