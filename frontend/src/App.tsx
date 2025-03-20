@@ -920,24 +920,22 @@ function App() {
         {/* 移除图片拖拽区 */}
         {/* 图片预览区 - 只在有图片时显示 */}
         {content.images.length > 0 && (
-          <div className="upload-section-container">
-            <div className="preview-section">
-              <div className="preview-stats">
-                已上传 {content.images.length}/{MAX_IMAGES} 张图片
-              </div>
-              <div className="preview-images">
-                {content.images.map((image, index) => (
-                  <div key={index} className="thumbnail">
-                    <img src={image} alt={`上传图片 ${index + 1}`} />
-                    <button
-                      className="delete-button"
-                      onClick={() => handleImageDelete(index)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+          <div className="preview-section">
+            <h3 className="preview-stats">
+              已上传 {content.images.length}/{MAX_IMAGES} 张图片
+            </h3>
+            <div className="preview-images">
+              {content.images.map((image, index) => (
+                <div key={index} className="thumbnail">
+                  <img src={image} alt={`上传图片 ${index + 1}`} />
+                  <button
+                    className="delete-button"
+                    onClick={() => handleImageDelete(index)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
