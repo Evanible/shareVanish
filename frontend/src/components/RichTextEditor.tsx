@@ -185,8 +185,8 @@ const RichTextEditor = ({
   
   // 新增：使用不同的方法插入多张图片
   const insertMultipleImages = useCallback((imageUrls: string[]) => {
-    if (!editor || !imageUrls.length) {
-      console.log('无法插入图片：编辑器不可用或图片列表为空')
+    if (!editor || imageUrls.length === 0) {
+      console.log('无法插入图片：编辑器不可用或图片URL列表为空')
       return
     }
     
@@ -196,21 +196,25 @@ const RichTextEditor = ({
       // 获取当前选择
       const { state } = editor.view
       
-      // 构建图片内容字符串 - 每张图片之间有换行
-      let htmlContent = ''
-      imageUrls.forEach(url => {
-        htmlContent += `<img src="${url}" /><p></p>`
+      // 改进：分别插入每一张图片，避免一次性插入HTML导致的图片丢失问题
+      editor.chain().focus()
+      
+      // 逐个插入图片
+      imageUrls.forEach((url, index) => {
+        console.log(`正在插入第 ${index + 1}/${imageUrls.length} 张图片: ${url.substring(0, 30)}...`)
+        
+        // 插入图片
+        editor.chain()
+          .insertContent(`<img src="${url}" />`)
+          .run()
+          
+        // 在图片后添加段落（除了最后一张图片）
+        if (index < imageUrls.length - 1) {
+          editor.chain().insertContent('<p></p>').run()
+        }
       })
       
-      console.log(`构建的HTML内容: ${htmlContent.substring(0, 100)}...`)
-      
-      // 插入HTML内容
-      editor.chain()
-        .focus()
-        .insertContent(htmlContent)
-        .run()
-      
-      console.log('使用insertContent方法插入的多张图片完成')
+      console.log('使用改进的插入方法完成多张图片插入')
       
       // 验证插入后的内容
       setTimeout(() => {
