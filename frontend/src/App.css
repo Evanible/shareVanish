@@ -351,6 +351,7 @@ footer p {
   border: 1px solid #e0e0e0;
   width: 100%;
   box-sizing: border-box;
+  display: block;
 }
 
 /* 图片预览统计 */
@@ -362,6 +363,9 @@ footer p {
   font-weight: normal;
   text-align: left;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 缩略图容器改进 */
