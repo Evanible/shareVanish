@@ -6,6 +6,9 @@ import RichTextEditor from './components/RichTextEditor'
 // 更新标记：强制浏览器加载新版本 - v1.0.1
 import './test.css'
 
+// 定义常量
+const MAX_IMAGES = 10; // 最大图片数量
+
 function App() {
   // 状态管理
   const [content, setContent] = useState<Content>({
@@ -475,17 +478,30 @@ function App() {
 
   // 处理图片上传
   const handleImageUpload = (dataUrl: string) => {
+    // 日志显示当前图片数量
+    console.log(`当前图片数量: ${content.images.length}/${MAX_IMAGES}`);
+    
     // 防止重复添加相同的图片
     if (content.images.includes(dataUrl)) {
-      return false
+      console.log('图片已存在，忽略');
+      return false;
     }
     
+    // 检查图片数量限制
+    if (content.images.length >= MAX_IMAGES) {
+      console.log(`图片数量已达上限 (${MAX_IMAGES})`);
+      setError(`图片数量已达上限 (${MAX_IMAGES}张)`);
+      setTimeout(() => setError(''), 3000); // 3秒后清除错误提示
+      return false;
+    }
+    
+    console.log(`添加新图片，新总数: ${content.images.length + 1}`);
     setContent(prev => ({
       ...prev,
       images: [...prev.images, dataUrl]
-    }))
-    setIsContentModified(true)
-    return true
+    }));
+    setIsContentModified(true);
+    return true;
   }
 
   // 处理图片删除
