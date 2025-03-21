@@ -410,9 +410,9 @@ function App() {
     }
   }
 
-  // 处理文本内容变化
-  const handleTextChange = (html: string) => {
-    console.log('handleTextChange被调用,HTML长度:', html.length);
+  // 处理文本和图片内容变化
+  const handleEditorChange = (html: string, images: string[]) => {
+    console.log('handleEditorChange被调用,HTML长度:', html.length);
     
     // 使用本地变量保存比较结果，提高性能
     const contentChanged = html !== content.text;
@@ -423,6 +423,8 @@ function App() {
       setContent(prev => {
         return { ...prev, text: html };
       });
+
+      handleImagesSync(images);
       
       // 如果当前未标记为已修改，则设置修改标志
       if (!isContentModified) {
@@ -511,28 +513,6 @@ function App() {
     }));
     setIsContentModified(true);
     return true;
-  }
-
-  // 处理图片删除
-  const handleImageDelete = (index: number) => {
-    // 清除任何图片相关的提示消息
-    if (imageMessage) {
-      setImageMessage('');
-    }
-    
-    setContent(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
-    setIsContentModified(true)
-    
-    // 发送图片删除事件到编辑器
-    if (content.images[index]) {
-      const event = new CustomEvent('removeImage', {
-        detail: { src: content.images[index] }
-      });
-      document.dispatchEvent(event);
-    }
   }
 
   // 处理图片同步
@@ -854,7 +834,7 @@ function App() {
             <RichTextEditor 
               key={editorKey}
               initialValue={content.text}
-              onChange={handleTextChange}
+              onChange={handleEditorChange}
               onImageUpload={handleImageUpload}
               onImagesSync={handleImagesSync}
               isReadOnly={false}

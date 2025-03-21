@@ -8,7 +8,7 @@ import './RichTextEditor.css' // 导入样式
 
 interface RichTextEditorProps {
   initialValue: string
-  onChange: (html: string) => void
+  onChange: (html: string, images: string[]) => void
   onImageUpload: (imageDataUrl: string) => boolean
   onImagesSync?: (images: string[]) => void  // 添加图片同步回调
   isReadOnly?: boolean
@@ -37,7 +37,7 @@ const RichTextEditor = ({
   const lastHTMLRef = useRef<string>('')
   
   // 从编辑器内容中提取所有图片
-  const extractImagesFromEditor = useCallback((editor: any) => {
+  const extractImagesFromEditor = (editor: any) => {
     if (!editor) {
       console.log('提取图片失败: 编辑器实例不存在')
       return []
@@ -77,7 +77,7 @@ const RichTextEditor = ({
       console.error('提取图片时出错:', error)
       return []
     }
-  }, [])
+  }
   
   const editor = useEditor({
     extensions: [
@@ -101,7 +101,8 @@ const RichTextEditor = ({
         if (html !== lastHTMLRef.current) {
           console.log('内容确实变化，触发onChange')
           lastHTMLRef.current = html
-          onChange(html)
+          const images = extractImagesFromEditor(editor)
+          onChange(html, images)
         } else {
           console.log('内容无变化，忽略onChange调用')
         }
@@ -141,97 +142,6 @@ const RichTextEditor = ({
       }
     }
   }, [editor, checkContentHeight, onEditorReady])
-
-  // 添加图片删除事件监听
-  useEffect(() => {
-    if (!editor || isReadOnly) return;
-    
-    // 移除编辑器中的图片函数
-    const removeImageFromEditor = (e: CustomEvent) => {
-      const src = e.detail?.src;
-      
-      if (!src || !editor) {
-        console.log('移除图片事件：无效的图片源或编辑器未就绪');
-        return;
-      }
-      
-      console.log(`尝试从编辑器中移除图片: ${src.substring(0, 30)}...`);
-      
-      try {
-        // 获取编辑器内容JSON
-        const content = editor.getJSON();
-        // 跟踪是否找到并移除了图片
-        let imagesRemoved = 0;
-        
-        // 递归查找并标记要删除的图片节点
-        const findAndRemoveImage = (node: any, path: number[] = []): boolean => {
-          // 检查是否是图片节点且匹配目标src
-          if (node.type === 'image' && node.attrs && node.attrs.src === src) {
-            console.log(`找到匹配的图片节点，路径:`, path);
-            imagesRemoved++;
-            return true;
-          }
-          
-          // 如果有子节点，递归检查
-          if (node.content && Array.isArray(node.content)) {
-            // 从后向前遍历，以便删除不影响前面的索引
-            for (let i = node.content.length - 1; i >= 0; i--) {
-              const childPath = [...path, i];
-              const isImageNode = findAndRemoveImage(node.content[i], childPath);
-              
-              if (isImageNode) {
-                // 从内容数组中移除匹配的图片节点
-                node.content.splice(i, 1);
-                console.log(`从路径 ${childPath.join('.')} 移除图片节点`);
-                
-                // 如果父节点是段落且现在为空，保留一个空段落
-                if (node.type === 'paragraph' && node.content.length === 0) {
-                  console.log('保留空段落节点');
-                }
-                
-                return false; // 继续搜索其他可能的匹配
-              }
-            }
-          }
-          
-          return false;
-        };
-        
-        // 从根节点开始查找并移除图片
-        if (content && content.content) {
-          findAndRemoveImage(content);
-        }
-        
-        // 如果找到并移除了图片，更新编辑器内容
-        if (imagesRemoved > 0) {
-          console.log(`从编辑器中移除了 ${imagesRemoved} 个图片节点`);
-          editor.commands.setContent(content);
-          
-          // 触发内容更新事件
-          setTimeout(() => {
-            const updatedImages = extractImagesFromEditor(editor);
-            console.log(`更新后编辑器中的图片数量: ${updatedImages.length}`);
-            
-            if (onImagesSync) {
-              onImagesSync(updatedImages);
-            }
-          }, 50);
-        } else {
-          console.log('未找到匹配的图片节点');
-        }
-      } catch (error) {
-        console.error('移除图片时发生错误:', error);
-      }
-    };
-    
-    // 添加自定义事件监听器
-    document.addEventListener('removeImage', removeImageFromEditor as EventListener);
-    
-    // 清理函数
-    return () => {
-      document.removeEventListener('removeImage', removeImageFromEditor as EventListener);
-    };
-  }, [editor, extractImagesFromEditor, isReadOnly, onImagesSync]);
 
   // 监听窗口大小变化时重新检查内容高度
   useEffect(() => {
