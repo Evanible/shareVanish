@@ -5,17 +5,9 @@ const MAX_REQUEST_SIZE_MB = 5; // 最大请求大小限制（MB）
 const MAX_IMAGE_SIZE_MB = 1; // 单张图片最大大小限制（MB）
 
 // 同时支持本地开发环境和局域网访问
-// 注意：在生产环境中应使用相对路径或环境变量
 const API_BASE_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000/api'
-  : (
-    // 本机局域网IP
-    window.location.hostname === '192.168.31.99' 
-    ? 'http://192.168.31.99:3000/api'
-    : window.location.port.startsWith('517') 
-    ? 'http://localhost:3000/api' // 处理Vite开发服务器不同端口情况
-    : `http://${window.location.hostname}:3000/api`
-  )
+  : `http://${window.location.hostname}:3000/api`;
 
 // 检查API基础URL
 console.log('使用API基础URL:', API_BASE_URL)

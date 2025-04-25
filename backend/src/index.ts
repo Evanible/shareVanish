@@ -35,5 +35,5 @@ app.use('/api/content', contentRouter)
 // 启动服务器，监听所有网络接口
 app.listen(Number(port), '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`)
-  console.log(`可从局域网访问: http://YOUR_IP:${port}`)
+  console.log(`可从局域网访问: http://192.168.31.99:${port}`)
 }) 
