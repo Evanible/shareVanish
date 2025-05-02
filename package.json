@@ -17,6 +17,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10",
     "concurrently": "^8.2.2"
   }
-} 
+}

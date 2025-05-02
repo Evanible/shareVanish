@@ -7,7 +7,7 @@ const MAX_IMAGE_SIZE_MB = 1; // 单张图片最大大小限制（MB）
 // 同时支持本地开发环境和局域网访问
 const API_BASE_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000/api'
-  : `http://${window.location.hostname}:3000/api`;
+  : `${window.location.origin}/api`;
 
 // 检查API基础URL
 console.log('使用API基础URL:', API_BASE_URL)

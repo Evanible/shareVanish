@@ -27,6 +27,8 @@ mongoose.connect(MONGODB_URI)
 
 // 中间件
 app.use(cors())
+app.use(express.static('../frontend/dist'))
+app.get('/ping', (req, res) => res.send('pong'));
 app.use(express.json({ limit: '10mb' }))
 
 // 路由
